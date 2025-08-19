@@ -1,0 +1,438 @@
+# Script Conversion Reference
+
+This document provides a reference for the conversion of Jupyter notebooks to Python scripts, detailing the changes made and the purpose of each script.
+
+## Converted Scripts
+
+### 1. preprocess_wav_loops.py
+**Source:** `1_preprocess_wav_loops.ipynb`
+
+**Purpose:** 
+- Loads and preprocesses audio files with configurable parameters
+- Adjusts audio length to a target duration
+- Uses multiprocessing for efficient processing
+- Saves processed data with labels as a pickle file
+
+**Key Functions:**
+- `encode_audio_tags()`: Encodes audio tags using MultiLabelBinarizer
+- `process_audio_length()`: Adjusts audio to target length by repeating, padding, or truncating
+- `process_audio_file()`: Processes a single audio file
+- `run_process()`: Main processing function that handles multiprocessing
+
+**Enhanced Features (2025-08):**
+- **Configuration Integration**: Added support for audio preprocessing configuration loading
+- **Improved Error Handling**: Better validation and error messages
+
+**Usage:**
+```bash
+python music_anomalizer/scripts/preprocess_wav_loops.py
+```
+
+### 2. embedding_extraction_wav.py
+**Source:** `4_embedding_extraction_wav.ipynb`
+
+**Purpose:**
+- Extracts embeddings from audio files using the CLAP model
+- Processes WAV files using concurrent processing with configurable parameters
+- Saves embeddings and index data as pickle files with flexible output naming
+
+**Key Functions:**
+- `extract_embedding()`: Extracts embedding from a single audio file
+- `worker()`: Worker function for concurrent processing
+- `run_process()`: Main processing function that handles concurrent execution
+- `initialize_device()`: Device initialization with preference selection
+- `initialize_clap_model()`: CLAP model loading with validation
+- `process_dataset()`: Complete dataset processing pipeline
+
+**Enhanced Features (2025-08):**
+- **Command-line Interface**: Configurable dataset paths and processing options
+- **Device Selection**: Explicit device control with fallback logic
+- **Robust Error Handling**: Model loading validation and graceful failure handling
+- **Flexible I/O**: Configurable input/output directories
+- **Better Logging**: Structured logging with timestamps
+- **Path Validation**: Checks for dataset and checkpoint existence
+
+**Usage:**
+```bash
+# Basic usage with defaults
+python music_anomalizer/scripts/embedding_extraction_wav.py
+
+# Process specific dataset
+python music_anomalizer/scripts/embedding_extraction_wav.py --dataset data/dataset/guitar --output data/embeddings
+
+# Control processing parameters
+python music_anomalizer/scripts/embedding_extraction_wav.py --device cuda --workers 16 --model HTSAT-base
+
+# Use custom checkpoint
+python music_anomalizer/scripts/embedding_extraction_wav.py --checkpoint path/to/clap_model.pt
+```
+
+### 3. hp_tuning_loop_detection.py
+**Source:** `6_hp_tuning_loop_detecton.ipynb`
+
+**Purpose:**
+- Performs hyperparameter tuning for an AutoEncoder model
+- Uses Weights & Biases (wandb) sweeps for systematic hyperparameter exploration
+- Trains models using PyTorch Lightning with proper module imports
+- Analyzes and visualizes results
+
+**Key Functions:**
+- `load_and_prepare_data()`: Loads and prepares data for training
+- `train()`: Trains the AutoEncoder model with given configuration
+- `sweep_callback()`: Executes the hyperparameter sweep
+- `analyze_results()`: Analyzes and visualizes the results
+
+**Enhanced Features (2025-08):**
+- **Fixed Module Imports**: Updated to use new package structure imports
+- **Proper Dependencies**: Uses `AutoEncoder` and `DatasetSampler` from new modules
+- **Error Handling**: Better handling of missing dependencies
+
+**Usage:**
+```bash
+python music_anomalizer/scripts/hp_tuning_loop_detection.py
+```
+
+### 4. train_models.py
+**Source:** `7_train_models.ipynb`
+
+**Purpose:**
+- Trains DeepSVDD models on different network configurations and datasets
+- Loads configurations from YAML files with validation
+- Organizes trained models in a structured directory with checkpoint registry
+- Provides command-line interface for flexible training execution
+
+**Key Functions:**
+- `main(config_name, device_override)`: Main training orchestration with error handling
+- Command-line argument parsing with validation options
+
+**Enhanced Features (2025-08):**
+- **Command-line Interface**: Configurable experiments via CLI arguments
+- **Device Selection**: Explicit device control (auto/cpu/cuda) with fallback
+- **Configuration Validation**: Pydantic schema validation with detailed error messages
+- **Robust Error Handling**: Continues training other models if one fails
+- **Dataset Validation**: Checks dataset existence and sample count
+- **Checkpoint Registry Integration**: Registers trained models for automatic discovery
+- **Dry-run Mode**: Validates configuration without expensive training
+
+**Usage:**
+```bash
+# Basic training with default config
+python music_anomalizer/scripts/train_models.py
+
+# Train specific experiment
+python music_anomalizer/scripts/train_models.py --config exp2_deeper
+
+# Validate configuration only
+python music_anomalizer/scripts/train_models.py --config exp1 --dry-run
+
+# Force CPU training
+python music_anomalizer/scripts/train_models.py --config exp1 --device cpu
+
+# GPU training with validation
+python music_anomalizer/scripts/train_models.py --config exp2_deeper --device cuda
+```
+
+**Error Handling Improvements:**
+- Dataset loading failures don't stop entire training process
+- Configuration validation before expensive operations
+- Device availability checking with graceful fallback
+- Clear error messages for troubleshooting
+
+### 5. compare_analyze_models.py
+**Source:** `8_compare_analyze_models.ipynb`
+
+**Purpose:**
+- Compares and analyzes trained models across different datasets
+- Computes anomaly scores for training and validation sets
+- Visualizes latent space representations of the data
+- Determines anomaly thresholds using statistical methods
+- Logs results to Weights & Biases for experiment tracking
+
+**Key Functions:**
+- `process_train_set()`: Processes training set for all models and datasets
+- `evaluate_models_on_validation_set()`: Evaluates models on validation sets
+- `log_figures_to_wandb()`: Logs visualization figures to Weights & Biases
+- `main()`: Main function that orchestrates the comparison and analysis process
+
+**Usage:**
+```bash
+python script/compare_analyze_models.py
+```
+
+### 6. main_exp_benchmark.py
+**Source:** `11_main_exp_benchmark.ipynb`
+
+**Purpose:**
+- Runs the main experiment benchmark evaluating different anomaly detection models on music datasets
+- Evaluates baseline models (Isolation Forest, PCA Reconstruction Error)
+- Evaluates Deep SVDD models with visualization
+- Performs statistical analysis and generates plots for analysis of anomaly detection performance
+
+**Key Functions:**
+- `set_random_seeds()`: Sets random seeds for reproducibility
+- `initialize_device()`: Initializes available devices (CUDA or CPU)
+- `load_configurations()`: Loads experiment configurations from JSON file
+- `evaluate_baseline_models()`: Evaluates baseline models on all datasets
+- `evaluate_deep_svdd_models()`: Evaluates Deep SVDD models on all datasets with visualization
+- `organize_results()`: Organizes results into train, validation, and threshold dictionaries
+- `create_visualizations()`: Creates visualizations for the results
+- `perform_statistical_analysis()`: Performs statistical analysis on the results
+- `main()`: Main function that orchestrates the experiment benchmark
+
+**Usage:**
+```bash
+python script/main_exp_benchmark.py
+```
+
+### 7. loop_evaluation.py
+**Source:** `9_test.ipynb`
+
+**Purpose:**
+- Evaluates detected loops using statistical analysis and visualization
+- Loads and processes MIDI loop data for evaluation
+- Performs statistical tests on loop scores
+- Generates visualizations of loop score distributions
+
+**Key Functions:**
+- `load_test_data()`: Loads test data for loop evaluation
+- `evaluate_loops()`: Evaluates loops using a trained SVDD model
+- `perform_statistical_test()`: Performs statistical tests on evaluation distances
+- `plot_loop_score_distribution()`: Plots the distribution of loop scores
+- `main()`: Main function that demonstrates the loop evaluation functionality
+
+**Usage:**
+```bash
+python script/loop_evaluation.py
+```
+
+### 8. extract_metadata.py
+**Source:** `extract_meta_data.ipynb`
+
+**Purpose:**
+- Extracts metadata from audio files including BPM, duration, and keywords
+- Communicates with a tempo detection service via HTTP requests
+- Processes audio files using multiprocessing for efficiency
+- Saves extracted metadata to JSON files
+
+**Key Functions:**
+- `generate_md5_hash()`: Generates a hash for file identification
+- `load_existing_metadata()`: Loads existing metadata from JSON file
+- `update_metadata_file()`: Updates the metadata JSON file
+- `extract_bpm_from_path()`: Extracts BPM from file path patterns
+- `extract_keywords()`: Extracts and processes keywords from file paths
+- `manage_bpm_keywords()`: Manages BPM keywords in the keywords list
+- `get_tempo_from_detector()`: Communicates with tempo detection service
+- `process_file()`: Processes a single audio file to extract metadata
+- `process_audio_files()`: Processes all audio files in a specified folder
+- `main()`: Main function that orchestrates the metadata extraction process
+
+**Usage:**
+```bash
+python script/extract_metadata.py
+```
+
+## Changes Made During Conversion
+
+### General Improvements:
+1. **Added proper module documentation:** Each script now has a comprehensive docstring explaining its purpose and functionality.
+2. **Structured code with functions:** Code is organized into logical functions with clear purposes and documentation.
+3. **Added main() function and if-name-main pattern:** Each script can be run directly or imported as a module.
+4. **Improved error handling:** Added appropriate try/except blocks where needed.
+5. **Enhanced code comments:** Added detailed comments explaining complex operations.
+
+### Specific Changes by Script:
+
+#### preprocess_wav_loops.py:
+- Converted notebook cells into logical functions
+- Added comprehensive docstrings for all functions
+- Added a main() function to orchestrate the preprocessing pipeline
+- Improved error messages with more context
+
+#### embedding_extraction_wav.py:
+- Restructured code into logical functions with clear responsibilities
+- Added detailed documentation for all functions
+- Added a main() function to run the embedding extraction pipeline
+- Improved variable naming for clarity
+
+#### hp_tuning_loop_detection.py:
+- Separated data loading, training, and analysis into distinct functions
+- Added comprehensive documentation for all functions
+- Added a main() function to orchestrate the hyperparameter tuning process
+- Made result analysis more robust with error handling
+
+#### compare_analyze_models.py:
+- Converted notebook cells into logical functions with clear responsibilities
+- Added comprehensive documentation for all functions
+- Added a main() function to orchestrate the model comparison and analysis process
+- Improved code structure with proper separation of concerns
+- Added proper error handling and logging
+
+#### main_exp_benchmark.py:
+- Converted notebook cells into logical functions with clear responsibilities
+- Added comprehensive documentation for all functions
+- Added a main() function to orchestrate the experiment benchmark process
+- Improved code structure with proper separation of concerns for different evaluation phases
+- Organized code into distinct functions for baseline evaluation, Deep SVDD evaluation, result organization, visualization, and statistical analysis
+- Added proper error handling and logging
+
+#### loop_evaluation.py:
+- Converted notebook cells into logical functions with clear responsibilities
+- Added comprehensive documentation for all functions
+- Added a main() function to demonstrate the loop evaluation functionality
+- Organized code into distinct functions for data loading, loop evaluation, statistical testing, and visualization
+- Added proper error handling and logging
+
+## Configuration System Migration (2025-08)
+
+### Migration from JSON to YAML Configuration System
+
+**Purpose:** Improved configuration management with inheritance, validation, and better readability.
+
+**Key Improvements:**
+1. **YAML Format**: Enables comments for better documentation of configuration choices
+2. **Configuration Inheritance**: Base configuration file reduces duplication across experiments
+3. **Schema Validation**: Pydantic models provide type safety and validation
+4. **Modular Structure**: Organized configuration loading utilities
+
+**New Configuration Structure:**
+```
+configs/
+├── base.yaml              # Base configuration with common defaults
+├── exp1.yaml             # Experiment 1 configuration (inherits from base)
+├── exp2_deeper.yaml      # Experiment 2 deeper networks (inherits from base)
+└── audio_preprocessing.yaml  # Audio preprocessing configuration
+```
+
+**Schema Components:**
+- `NetworkConfig`: Neural network architecture validation
+- `DeepSVDDConfig`: Deep SVDD training parameters  
+- `TrainerConfig`: Training loop configuration
+- `AudioPreprocessingConfig`: Audio processing parameters
+- `ExperimentConfig`: Main experiment configuration container
+
+**Configuration Loading:**
+```python
+from music_anomalizer.config import load_experiment_config
+
+# Load with validation
+config = load_experiment_config("exp2_deeper")
+```
+
+**Migration Details:**
+- Converted `configs/deeper_network.json` → `configs/exp2_deeper.yaml`
+- Added comprehensive comments explaining parameter choices
+- Implemented inheritance to reduce duplication
+- Added validation to catch configuration errors early
+- Updated all scripts to use new YAML config system:
+  - `main_exp_benchmark.py` - Updated config loading and checkpoint discovery
+  - `compare_analyze_models.py` - Migrated to YAML config with validation
+  - `compute_anomaly_scores.py` - Updated config loading approach
+  - `loop_detector.py` - Migrated to new config system
+  - `test_train_models.py` - Updated for YAML configuration
+  - `train_models.py` - Major improvements with CLI and error handling
+
+**Validation Features:**
+- Type checking for all configuration parameters
+- Range validation (e.g., dropout rate 0-1, positive learning rates)
+- Required field validation
+- Custom validators for domain-specific constraints
+
+### Checkpoint Management System (2025-08)
+
+**Purpose:** Robust checkpoint management with automatic discovery and validation.
+
+**Key Components:**
+- `CheckpointRegistry`: Automatic checkpoint discovery and validation
+- `CheckpointConfig`: Configuration for checkpoint naming and organization
+- Integration with experiment configurations
+
+**Features:**
+- **Automatic Discovery**: Scans checkpoint directories to find best models
+- **Validation Loss Selection**: Automatically selects checkpoints with lowest validation loss
+- **Path Validation**: Ensures checkpoint files exist before use
+- **Flexible Override**: Supports manual path specification when needed
+
+**Checkpoint Directory Structure:**
+```
+checkpoints/
+└── loop_benchmark/
+    └── EXP2_DEEPER/
+        ├── AE/
+        │   ├── *-AE-epoch=*.ckpt
+        │   └── *-DSVDD-epoch=*.ckpt
+        └── AEwRES/
+            ├── *-AE-epoch=*.ckpt
+            └── *-DSVDD-epoch=*.ckpt
+```
+
+**Usage:**
+```python
+from music_anomalizer.config import get_checkpoint_registry
+
+registry = get_checkpoint_registry()
+checkpoints = registry.get_experiment_checkpoints("EXP2_DEEPER")
+```
+
+## Script Enhancement Session (2025-08)
+
+### Comprehensive Script Improvements
+
+**Purpose:** Modernize all scripts with robust CLI interfaces, error handling, and configuration integration.
+
+**Scripts Enhanced:**
+
+#### train_models.py (Major Overhaul)
+- **Command-line Interface**: Added configurable experiments via `--config`, `--device`, `--dry-run`
+- **Device Management**: Explicit device selection with automatic fallback
+- **Configuration Validation**: Pydantic schema validation with detailed error reporting
+- **Robust Error Handling**: Continues training if individual models fail
+- **Dataset Validation**: Checks dataset existence and sample count before training
+- **Checkpoint Registry**: Integration with automatic checkpoint discovery system
+
+#### embedding_extraction_wav.py (Significant Enhancement)
+- **CLI Interface**: Added `--dataset`, `--output`, `--device`, `--workers`, `--model` arguments
+- **Device Management**: Configurable device selection with validation
+- **Model Loading**: Robust CLAP model initialization with checkpoint validation
+- **Flexible Processing**: Configurable dataset paths and output directories
+- **Better Logging**: Structured logging with timestamps and proper error reporting
+- **Path Validation**: Dataset and checkpoint existence verification
+
+#### hp_tuning_loop_detection.py (Module Fixes)
+- **Import Resolution**: Fixed missing module imports using new package structure
+- **Dependency Updates**: Uses `AutoEncoder` and `DatasetSampler` from proper modules
+
+#### preprocess_wav_loops.py (Configuration Integration)
+- **Config Loading**: Added audio preprocessing configuration support
+- **Better Structure**: Improved import organization
+
+#### test_train_models.py (Pydantic Migration)
+- **Type-safe Access**: Updated to use Pydantic attributes instead of dictionary access
+- **Configuration Testing**: Enhanced validation of YAML configuration loading
+
+#### All Config-using Scripts (Systematic Update)
+- **YAML Migration**: All scripts now use `load_experiment_config()` instead of `load_json()`
+- **Validation**: Configuration validation through Pydantic schemas
+- **Error Handling**: Proper error messages for configuration issues
+- **Consistency**: Unified configuration loading patterns across all scripts
+
+**New Features Added:**
+- **Automatic Checkpoint Discovery**: Scripts can find best models automatically
+- **Device Selection**: All scripts support explicit device control
+- **Configuration Validation**: All configs validated before expensive operations
+- **Dry-run Modes**: Validate configurations without running expensive operations
+- **Better Error Recovery**: Scripts continue processing when individual operations fail
+
+**Benefits Achieved:**
+1. **User Experience**: Clear CLI interfaces with helpful arguments
+2. **Reliability**: Comprehensive error handling and validation
+3. **Flexibility**: Configurable parameters for different use cases
+4. **Maintainability**: Consistent patterns across all scripts
+5. **Performance**: Better device management and resource handling
+
+## Notes:
+- All scripts maintain the same functionality as the original notebooks
+- Configuration files now use YAML format with inheritance and validation
+- Scripts include comprehensive CLI interfaces for flexible usage
+- All scripts support proper error handling and validation
+- Dependencies include pydantic and PyYAML for configuration management
+- Scripts are designed to be run from the project root directory
