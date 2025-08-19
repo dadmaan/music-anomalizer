@@ -1,0 +1,36 @@
+services:
+  # Main Streamlit web application
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/usr/src/app
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: ["streamlit", "run", "app/pages/Home.py", "--server.port=8501", "--server.address=0.0.0.0"]
+
+  # Jupyter notebook for development
+  jupyter:
+    build: .
+    ports:
+      - "8081:8081"
+    volumes:
+      - .:/usr/src/app
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8081", "--no-browser", "--allow-root", "--NotebookApp.token=''", "--NotebookApp.password=''"]
