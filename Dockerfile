@@ -15,14 +15,20 @@ RUN apt-get update && apt-get install -y \
     libsndfile1 fluidsynth curl git tmux\
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-# RUN pip install --no-cache-dir laion-clap torchaudio
-# RUN pip install --no-cache-dir jupyter jupyter-core typing_extensions
+# Copy package configuration files first for better Docker layer caching
+COPY pyproject.toml .
+COPY README.md .
+COPY LICENSE .
 
-# Copy the current directory contents into the container at /usr/src/app
-# COPY . .
+# Copy the package source code
+COPY music_anomalizer/ ./music_anomalizer/
+COPY configs/ ./configs/
+
+# Install the package in development mode with all dependencies
+RUN pip install --no-cache-dir -e ".[dev]"
+
+# Copy additional project files
+COPY . .
 
 # To run jupyter in remote development scenario with VSCode
 # from https://stackoverflow.com/questions/63998873/vscode-how-to-run-a-jupyter-notebook-in-a-docker-container-over-a-remote-serve
