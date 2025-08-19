@@ -6,7 +6,6 @@ This project includes a docker-compose configuration that allows you to run the 
 
 1. **app** - Main Streamlit web application with GPU support
 2. **jupyter** - Jupyter notebook environment with GPU support
-3. **app-cpu** - Streamlit web application for CPU-only systems
 
 ## Prerequisites
 
@@ -24,13 +23,6 @@ docker-compose up app
 
 Access the application at http://localhost:8501
 
-### Run the Streamlit Web Application (CPU-only)
-
-```bash
-docker-compose up app-cpu
-```
-
-Access the application at http://localhost:8502
 
 ### Run Jupyter Notebook
 
@@ -58,8 +50,43 @@ To stop the services, press `Ctrl+C` in the terminal where docker-compose is run
 docker-compose down
 ```
 
+## Package Structure
+
+The project now uses a proper Python package structure with `music_anomalizer` as the main package. The Docker setup automatically installs the package in development mode with all dependencies.
+
+## Development
+
+### Installing the Package
+
+The Docker container automatically installs the `music_anomalizer` package in development mode using:
+
+```bash
+pip install -e ".[dev]"
+```
+
+This includes all dependencies specified in `pyproject.toml`.
+
+### Using the Package
+
+Inside the container, you can import modules from the package:
+
+```python
+from music_anomalizer.models import AnomalyDetector
+from music_anomalizer.preprocessing import Wav2Embedding
+from music_anomalizer.utils import load_json
+```
+
+### Running Scripts
+
+You can run the provided scripts directly:
+
+```bash
+python -m music_anomalizer.scripts.main_exp_benchmark
+```
+
 ## Notes
 
 - The application code is mounted as a volume, so changes to the code will be reflected in the containers
 - GPU support requires NVIDIA Docker runtime to be installed on your system
-- Checkpoints, data, and output directories are mounted as volumes for persistence
+- The package is installed in development mode, so local changes are immediately available
+- Configuration files are available in the `configs/` directory
