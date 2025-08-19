@@ -1,0 +1,103 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "music-anomalizer"
+version = "0.1.0"
+description = "A tool for detecting anomalies in musical audio loops using deep learning"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Music Anomalizer Team"},
+]
+keywords = ["music", "anomaly detection", "audio processing", "deep learning", "SVDD"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research", 
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "soundfile",
+    "librosa", 
+    "torchlibrosa",
+    "ftfy",
+    "braceexpand",
+    "webdataset",
+    "wget",
+    "wandb",
+    "scipy",
+    "scikit-learn",
+    "pandas",
+    "tqdm",
+    "regex",
+    "pyFluidSynth",
+    "prdc",
+    "sparse",
+    "pytorch-lightning",
+    "miditoolkit",
+    "mido",
+    "pretty-midi",
+    "numpy",
+    "matplotlib",
+    "seaborn",
+    "pypianoroll",
+    "laion-clap",
+    "torchaudio",
+    "typing_extensions",
+    "demucs",
+    "torchsummary",
+    "streamlit",
+    "plotly",
+    "pydantic>=1.8.0",
+    "PyYAML>=5.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "jupyter",
+    "jupyter-core",
+    "pytest",
+    "pytest-cov",
+    "black",
+    "isort",
+    "flake8",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-username/music-anomalizer"
+Repository = "https://github.com/your-username/music-anomalizer"
+Issues = "https://github.com/your-username/music-anomalizer/issues"
+
+[project.scripts]
+music-anomalizer = "music_anomalizer.scripts.main_exp_benchmark:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["music_anomalizer*"]
+
+[tool.setuptools.package-data]
+music_anomalizer = ["configs/*.json", "configs/*.yaml"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
