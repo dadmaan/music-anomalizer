@@ -1,0 +1,37 @@
+# Experiment 1: Basic AutoEncoder configurations for anomaly detection
+# This experiment tests different AutoEncoder variants with standard depth
+base_config: base.yaml
+
+config_name: exp1
+
+# Network architecture configurations
+networks:
+  # Baseline model without regularization
+  Baseline:
+    class_name: AutoEncoder
+    hidden_dims: [512, 256, 128]  # Progressive dimension reduction
+    dropout_rate: null            # No dropout for baseline
+    use_batch_norm: false         # No batch norm for baseline
+  
+  # Standard AutoEncoder with regularization
+  AE:
+    class_name: AutoEncoder
+    hidden_dims: [512, 256, 128]  # Same architecture as baseline
+    dropout_rate: 0.2             # 20% dropout for regularization
+    use_batch_norm: true          # Batch normalization for stable training
+  
+  # AutoEncoder with residual connections
+  AEwRES:
+    class_name: AutoEncoderWithResidual
+    hidden_dims: [512, 256, 128]  # Same depth, different connectivity
+    dropout_rate: 0.2             # Consistent regularization
+    use_batch_norm: true          # Batch norm for residual networks
+
+# Training configuration specific to this experiment
+trainer:
+  wandb_project_name: "LOOP-DSVDD-EXP1"  # Experiment tracking project
+
+# Dataset paths for training and evaluation
+dataset_paths:
+  HTSAT_base_musicradar_bass: "./data/pickle/embedding/musicradar/HTSAT-base_musicradar_bass_embeddings.pkl"
+  HTSAT_base_musicradar_nff_bass: "./data/pickle/embedding/musicradar/HTSAT-base_musicradar_nff_bass_embeddings.pkl"
