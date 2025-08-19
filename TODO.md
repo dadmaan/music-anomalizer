@@ -1,143 +1,356 @@
-Prioritized TODO Improvement Plan for PANN Loop Detection Package
+Prioritized TODO Plan for Music Anomalizer Package
 
-  Executive Summary
+## Executive Summary
 
-  This Python package implements audio loop detection using deep learning models (Autoencoders + SVDD) with a Streamlit web interface. While      
-  functionally complete, it lacks proper packaging structure, documentation, testing, and distribution setup, making it unsuitable for
-  production use or distribution.
+This Python package implements audio loop detection using deep learning models (Autoencoders + Deep SVDD) with CLAP embeddings and a Streamlit web interface. The core package structure and configuration system have been modernized, but several critical issues remain that impact production readiness and user experience.
 
-  Critical Issues (Blocking Problems)
+## Package Structure Status ✅
 
-  1. Missing Package Structure 📁
+**COMPLETED:** The package structure has been modernized with:
+- ✅ Proper `music_anomalizer/` package with submodules
+- ✅ `pyproject.toml` for modern Python packaging
+- ✅ YAML-based configuration system with inheritance
+- ✅ Pydantic schemas for configuration validation
+- ✅ Checkpoint management system
+- ✅ CLI interfaces for all major scripts
 
-  - Location: Root directory
-  - Issue: No setup.py, pyproject.toml, or proper Python package structure
-  - Solution: Create proper package structure with setup.py/pyproject.toml, __init__.py files, and organize modules into a proper package directory
-  - Effort: High
-  - Files to create: setup.py, pann_aff/__init__.py, move modules to package directory
+## Critical Issues (Blocking Problems)
 
-  2. Hard-coded Absolute Paths 🛤️
+### 1. Streamlit App Modernization 🎯
 
-  - Location: pages/2_Upload_and_Analyze.py:18-24, config files
-  - Issue: Hardcoded paths will break when installed as package or on different systems
-  - Solution: Use package resources, relative imports, and environment variables for paths
-  - Effort: Medium
-  - Files: All Streamlit pages, config files, detection scripts
+**Location:** `app/pages/2_Upload_and_Analyze.py:8-24`
+**Issue:** Streamlit app still uses old module imports and hardcoded paths
+**Critical Problems:**
+- Lines 8-10: `from modules.utils import load_json, load_pickle` (old imports)
+- Lines 9-10: `from modules.anomaly_detector import AnomalyDetector` (old imports)
+- Line 19: `CONFIG_PATH = os.path.join(BASE_DIR, 'configs', 'exp2_deeper.json')` (JSON config)
+- Lines 20-24: Hardcoded checkpoint paths that bypass checkpoint registry
+- Line 52: Uses `load_json(CONFIG_PATH)` instead of YAML config system
+- Line 259: Uses `load_json(CONFIG_PATH)` in `detect_loop` function
 
-  3. Missing Dependencies Documentation 📋
+**Solution:** 
+- Update imports to use `music_anomalizer.` package structure
+- Migrate to YAML configuration system with `load_experiment_config`
+- Use checkpoint registry instead of hardcoded paths
+- Update all function signatures to use new configuration objects
 
-  - Location: requirements.txt
-  - Issue: No version pinning, missing external dependencies (FluidSynth), unclear CUDA requirements
-  - Solution: Pin versions, document system dependencies, create separate dev/prod requirements
-  - Effort: Medium
-  - Files: requirements.txt, new requirements-dev.txt
+**Effort:** High  
+**Files:** `app/pages/2_Upload_and_Analyze.py`, potentially other Streamlit pages
 
-  High Priority (Major Usability/Quality Impacts)
+### 2. Configuration Migration Completion 🔧
 
-  4. No Error Handling ❌
+**Location:** Multiple scripts still using old patterns
+**Issue:** Inconsistent configuration loading across the codebase
+**Problems Found:**
+- `preprocess_wav_loops.py:158`: Hardcoded YAML path `'configs/audio_preprocessing_config.yaml'`
+- `preprocess_wav_loops.py:161`: Hardcoded JSON path for metadata
+- Various scripts may still have mixed configuration approaches
 
-  - Location: modules/anomaly_detector.py, Streamlit pages
-  - Issue: Missing try-catch blocks, no graceful error recovery, unclear error messages
-  - Solution: Add comprehensive error handling, user-friendly error messages, fallback mechanisms
-  - Effort: Medium
-  - Files: All modules, especially anomaly_detector.py:46-60, Streamlit pages
+**Solution:**
+- Complete migration to unified configuration system
+- Use proper configuration loading functions consistently
+- Remove all hardcoded configuration file paths
 
-  5. Missing Documentation 📖
+**Effort:** Medium
+**Files:** All remaining scripts, configuration loading utilities
 
-  - Location: Root directory
-  - Issue: No README, installation guide, or API documentation
-  - Solution: Create comprehensive README with installation, usage, examples, and API docs
-  - Effort: Medium
-  - Files to create: README.md, docs/ directory, docstring improvements
+### 3. Missing Dependencies Documentation 📋
 
-  6. No Testing Infrastructure 🧪
+**Location:** `requirements.txt`
+**Issue:** Incomplete dependency specification and system requirements
+**Problems:**
+- No version pinning for critical dependencies
+- Missing external dependencies (e.g., audio processing libraries)
+- Unclear CUDA/PyTorch installation requirements
+- No separation of dev/prod dependencies
 
-  - Location: Entire project
-  - Issue: Zero test files, no testing framework setup
-  - Solution: Add pytest setup with unit tests for core modules, integration tests for Streamlit app
-  - Effort: High
-  - Files to create: tests/, pytest.ini, test files for each module
+**Solution:** 
+- Pin all dependency versions
+- Document system-level dependencies
+- Create separate requirements files for development and production
+- Add clear installation instructions
 
-  7. Memory Management Issues 💾
+**Effort:** Medium
+**Files:** `requirements.txt`, new `requirements-dev.txt`, README updates
 
-  - Location: modules/utils.py:20-22, Streamlit apps
-  - Issue: Manual CUDA cache clearing, potential memory leaks in long-running apps
-  - Solution: Implement proper context managers, automatic memory cleanup, resource pooling
-  - Effort: Medium
-  - Files: modules/utils.py, Streamlit pages loading models
+## High Priority (Major Usability/Quality Impacts)
 
-  8. Inconsistent Code Quality 🔧
+### 4. Missing Error Handling and Validation ❌
 
-  - Location: Multiple files
-  - Issue: Mixed coding styles, unused imports, no linting/formatting setup
-  - Solution: Add pre-commit hooks, black/flake8 configuration, clean up code
-  - Effort: Low
-  - Files: Add .pre-commit-config.yaml, pyproject.toml with tool configs
+**Location:** Throughout codebase
+**Issue:** Insufficient error handling and user experience issues
+**Specific Problems:**
+- `music_anomalizer/scripts/preprocess_wav_loops.py:158-161`: Hardcoded file paths with no existence validation
+- `app/pages/2_Upload_and_Analyze.py:258-288`: `detect_loop` function lacks comprehensive error handling
+- No graceful fallback when CUDA is unavailable but specified
+- Missing validation for audio file formats and duration limits
+- No progress indicators for long-running operations
 
-  Medium Priority (UX Improvements)
+**Solution:** 
+- Add comprehensive try-catch blocks with user-friendly messages
+- Implement file existence validation before processing
+- Add graceful device fallback (CUDA → CPU)
+- Validate audio files before processing
+- Add progress bars and status indicators
 
-  9. Streamlit App UX Issues 🎨
+**Effort:** Medium
+**Files:** All modules, especially Streamlit pages and processing scripts
 
-  - Location: pages/2_Upload_and_Analyze.py:290-473
-  - Issue: Complex UI, session state management issues, no progress indicators for long operations
-  - Solution: Simplify interface, add loading states, improve layout with better organization
-  - Effort: Medium
-  - Files: All Streamlit pages
+### 5. Missing Documentation 📖
 
-  10. Configuration Management ⚙️
+**Location:** Root directory
+**Issue:** Incomplete documentation for package usage
+**Current Status:**
+- No comprehensive README with installation instructions
+- Limited API documentation
+- Missing usage examples for different use cases
+- No contribution guidelines
 
-  - Location: config.yaml, configs/*.json
-  - Issue: Scattered configuration, no environment-based configs, hard to modify for users
-  - Solution: Unified configuration system with environment variables and user-friendly defaults
-  - Effort: Medium
-  - Files: Create new config.py module, consolidate existing configs
+**Solution:** 
+- Create comprehensive README with installation, configuration, and usage
+- Add API documentation with examples
+- Document configuration options and their effects
+- Add troubleshooting guide
 
-  11. Model Loading Performance ⚡
+**Effort:** Medium
+**Files to create:** `README.md`, `docs/` directory, improve docstrings
 
-  - Location: pages/2_Upload_and_Analyze.py:258-288
-  - Issue: Models reload on every analysis, no caching strategy
-  - Solution: Implement model caching, singleton pattern for model instances
-  - Effort: Medium
-  - Files: modules/anomaly_detector.py, Streamlit pages
+### 6. No Testing Infrastructure 🧪
 
-  12. Logging System 📝
+**Location:** Entire project
+**Issue:** Zero automated testing, making maintenance risky
+**Problems:**
+- No unit tests for core functionality
+- No integration tests for end-to-end workflows
+- No CI/CD pipeline for automated testing
+- Risk of regressions during future development
 
-  - Location: Missing throughout project
-  - Issue: Print statements instead of proper logging, no log levels or configuration
-  - Solution: Implement structured logging with configurable levels and outputs
-  - Effort: Low
-  - Files: All modules, add logging.ini
+**Solution:** 
+- Add pytest framework with comprehensive test suite
+- Create unit tests for configuration loading, model training, embedding extraction
+- Add integration tests for full pipeline workflows
+- Set up CI/CD with GitHub Actions
 
-  Low Priority (Optimizations)
+**Effort:** High
+**Files to create:** `tests/` directory, `pytest.ini`, test files for each module
 
-  13. Jupyter Notebook Organization 📓
+### 7. Memory Management and Performance Issues 💾
 
-  - Location: Root directory (13 notebooks)
-  - Issue: Notebooks with unclear naming, no organization or documentation
-  - Solution: Organize in notebooks/ directory, add clear naming and README
-  - Effort: Low
-  - Files: Move to notebooks/ directory, add notebooks/README.md
+**Location:** Model loading and processing scripts
+**Issue:** Inefficient resource management and potential memory leaks
+**Specific Problems:**
+- Models reload on every analysis in Streamlit app
+- No model caching or singleton patterns
+- Manual CUDA cache clearing without proper resource management
+- Large models loaded repeatedly instead of being cached
 
-  14. Docker Optimization 🐳
+**Solution:** 
+- Implement model caching with `@st.cache_resource` in Streamlit
+- Add proper context managers for GPU memory
+- Implement singleton pattern for model instances
+- Add memory profiling and optimization
 
-  - Location: Dockerfile
-  - Issue: Outdated PyTorch version, no multi-stage build, large image size
-  - Solution: Update to latest stable versions, implement multi-stage build for smaller images
-  - Effort: Low
-  - Files: Dockerfile, add .dockerignore
+**Effort:** Medium
+**Files:** Streamlit pages, model loading utilities
 
-  15. Data Pipeline Documentation 🔄
+### 8. Code Quality and Consistency Issues 🔧
 
-  - Location: modules/data_loader.py, preprocessing scripts
-  - Issue: No clear documentation of data flow and processing steps
-  - Solution: Add flowcharts, detailed comments, and usage examples
-  - Effort: Low
-  - Files: Add documentation to existing modules
+**Location:** Multiple files throughout codebase
+**Issue:** Inconsistent coding standards and maintainability issues
+**Problems Found:**
+- Mixed import patterns (some relative, some absolute)
+- Inconsistent logging (print statements vs proper logging)
+- No automated code formatting or linting
+- Unused imports and variables in some files
 
-  16. Performance Profiling 📊
+**Solution:** 
+- Add pre-commit hooks with black, flake8, isort
+- Implement consistent logging throughout
+- Clean up unused imports and variables
+- Add code quality checks to CI/CD
 
-  - Location: Core processing modules
-  - Issue: No performance monitoring or optimization
-  - Solution: Add benchmarking scripts, memory profiling, performance tests
-  - Effort: Low
-  - Files to create: benchmarks/ directory, profiling scripts
+**Effort:** Low-Medium
+**Files:** Add `.pre-commit-config.yaml`, update `pyproject.toml` with tool configs
+
+## Medium Priority (UX and Performance Improvements)
+
+### 9. Streamlit App User Experience 🎨
+
+**Location:** `app/pages/2_Upload_and_Analyze.py:290-473`
+**Issue:** Complex user interface and session state management
+**Specific Problems:**
+- Complex interface with too many configuration options exposed
+- Session state management issues causing inconsistent behavior
+- No clear progress indicators for long-running model operations
+- Layout could be more intuitive and user-friendly
+- Error messages not user-friendly enough
+
+**Solution:** 
+- Simplify interface by hiding advanced options behind expanders
+- Improve session state management with clear state transitions
+- Add progress bars and loading indicators
+- Better error messages with suggested solutions
+- Improve layout with clearer sections and better organization
+
+**Effort:** Medium
+**Files:** All Streamlit pages in `app/` directory
+
+### 10. Advanced Configuration Features ⚙️
+
+**Location:** Configuration system
+**Issue:** Missing advanced configuration capabilities
+**Needs:**
+- Environment variable support for deployment
+- User-specific configuration overrides
+- Configuration validation with better error messages
+- Runtime configuration modification
+
+**Solution:** 
+- Add environment variable support in configuration loading
+- Implement user configuration override system
+- Enhance validation error messages with suggestions
+- Add configuration modification utilities
+
+**Effort:** Medium
+**Files:** `music_anomalizer/config/` modules
+
+### 11. Performance Optimization ⚡
+
+**Location:** Model loading and processing workflows
+**Issue:** Inefficient processing and resource utilization
+**Problems:**
+- Models loaded repeatedly instead of cached
+- No batch processing for multiple files
+- Inefficient memory usage patterns
+- No performance monitoring or benchmarking
+
+**Solution:** 
+- Implement comprehensive model caching
+- Add batch processing capabilities
+- Optimize memory usage with proper resource management
+- Add performance monitoring and benchmarking tools
+
+**Effort:** Medium
+**Files:** Model loading utilities, processing scripts
+
+### 12. Logging and Monitoring System 📝
+
+**Location:** Throughout project
+**Issue:** Inconsistent logging and no monitoring capabilities
+**Current State:**
+- Mix of print statements and minimal logging
+- No structured logging format
+- No monitoring of model performance or system resources
+- No log rotation or management
+
+**Solution:** 
+- Implement structured logging with configurable levels
+- Add performance monitoring and metrics collection
+- Set up log rotation and management
+- Add debugging utilities for development
+
+**Effort:** Low-Medium
+**Files:** All modules, add logging configuration
+
+## Low Priority (Optimizations and Polish)
+
+### 13. Jupyter Notebook Organization 📓
+
+**Location:** Root directory
+**Issue:** Disorganized research notebooks
+**Current State:**
+- Multiple notebooks in root directory
+- Unclear naming conventions
+- No documentation of notebook purposes
+- Some notebooks may be outdated after script conversion
+
+**Solution:** 
+- Move to dedicated `notebooks/` directory
+- Add clear naming and README explaining each notebook
+- Archive or remove outdated notebooks
+- Add notebook execution instructions
+
+**Effort:** Low
+**Files:** Move existing notebooks, create `notebooks/README.md`
+
+### 14. Docker Optimization 🐳
+
+**Location:** `Dockerfile` and Docker configuration
+**Issue:** Docker setup could be more efficient
+**Current Issues:**
+- Image size could be optimized
+- No multi-stage build for smaller production images
+- Missing `.dockerignore` for faster builds
+- Could benefit from layer optimization
+
+**Solution:** 
+- Implement multi-stage build for smaller images
+- Add comprehensive `.dockerignore`
+- Optimize layer ordering for better caching
+- Add development vs production Docker targets
+
+**Effort:** Low
+**Files:** `Dockerfile`, add `.dockerignore`
+
+### 15. Data Pipeline Documentation 🔄
+
+**Location:** Data processing and pipeline modules
+**Issue:** Limited documentation of data flow
+**Needs:**
+- Clear documentation of data processing steps
+- Visual flowcharts showing data pipeline
+- Better examples of data formats and structures
+- Usage patterns and best practices
+
+**Solution:** 
+- Add comprehensive data pipeline documentation
+- Create flowcharts showing data flow
+- Add examples and usage patterns
+- Document data formats and expected structures
+
+**Effort:** Low
+**Files:** Add documentation to existing modules, create pipeline docs
+
+### 16. Performance Profiling and Benchmarking 📊
+
+**Location:** Core processing modules
+**Issue:** No performance monitoring or optimization baseline
+**Missing:**
+- Performance benchmarking tools
+- Memory usage profiling
+- Processing time analysis
+- Resource utilization monitoring
+
+**Solution:** 
+- Add benchmarking scripts for key operations
+- Implement memory profiling tools
+- Create performance regression tests
+- Add monitoring dashboard for resource usage
+
+**Effort:** Low-Medium
+**Files to create:** `benchmarks/` directory, profiling scripts
+
+## Implementation Priority
+
+**Immediate (Week 1):**
+1. Fix Streamlit app imports and configuration (Critical #1)
+2. Complete configuration migration (Critical #2)
+3. Add comprehensive error handling (High Priority #4)
+
+**Short-term (Weeks 2-3):**
+4. Create comprehensive documentation (High Priority #5)
+5. Implement model caching and performance improvements (High Priority #7)
+6. Add basic testing infrastructure (High Priority #6)
+
+**Medium-term (Month 2):**
+7. Improve Streamlit UX and add advanced features (Medium Priority #9-11)
+8. Add logging and monitoring system (Medium Priority #12)
+9. Complete dependency documentation (Critical #3)
+
+**Long-term (Month 3+):**
+10. Code quality improvements and CI/CD (High Priority #8)
+11. Optimization and polish items (Low Priority #13-16)
+
+## Summary
+
+The package has made significant progress with the core structure and configuration system modernization. The highest priorities are completing the Streamlit app modernization and ensuring consistent configuration usage throughout the codebase. The foundation is solid, but user-facing components need updates to match the modernized backend.
