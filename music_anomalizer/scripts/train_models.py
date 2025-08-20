@@ -13,157 +13,506 @@ The script performs the following steps:
    - Save the best model paths and trained models
 3. Organize model files using structured directory layout
 4. Register checkpoint paths for future use
+
+Enhanced Features:
+- Command-line interface with configurable experiments
+- Device selection with automatic fallback
+- Configuration validation with detailed error reporting
+- Robust error handling that continues training if individual models fail
+- Dataset validation and sample count verification
+- Checkpoint registry integration for automatic discovery
+- Comprehensive logging and progress tracking
+- Training progress indicators and status reporting
 """
 
 import os
 import sys
 import argparse
+import logging
+from typing import Dict, Any, Optional, Tuple
 import torch
-from torch import nn
 
 # Add the project root to the Python path to enable module imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from music_anomalizer.utils import write_to_json, load_json, create_folder, move_and_rename_files, PickleHandler
+from music_anomalizer.utils import (
+    write_to_json, create_folder, 
+    move_and_rename_files, PickleHandler
+)
 from music_anomalizer.config import load_experiment_config, get_checkpoint_registry
 from music_anomalizer.models.deepSVDD import DeepSVDDTrainer
 from music_anomalizer.utils import load_pickle
 
 
-def main(config_name: str = "exp1", device_override: str = "auto"):
-    """Main function to train DeepSVDD models.
+def setup_logging(log_level: str = "INFO") -> logging.Logger:
+    """Setup logging configuration with timestamps and proper formatting.
+    
+    Args:
+        log_level (str): Logging level ('DEBUG', 'INFO', 'WARNING', 'ERROR')
+        
+    Returns:
+        logging.Logger: Configured logger instance
+    """
+    log_format = "[%(asctime)s] %(levelname)s - %(message)s"
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper()),
+        format=log_format,
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    return logging.getLogger(__name__)
+
+
+def initialize_device(device_override: str = "auto") -> torch.device:
+    """Initialize computation device with fallback support.
+    
+    Args:
+        device_override (str): Device preference ('auto', 'cpu', 'cuda')
+        
+    Returns:
+        torch.device: Selected device
+    """
+    logger = logging.getLogger(__name__)
+    
+    if device_override == "cpu":
+        device = torch.device('cpu')
+        logger.info("Using CPU (forced)")
+    elif device_override == "cuda":
+        if not torch.cuda.is_available():
+            logger.warning("CUDA requested but not available, falling back to CPU")
+            device = torch.device('cpu')
+        else:
+            device = torch.device('cuda')
+            logger.info(f"Using CUDA device: {torch.cuda.get_device_name()}")
+    else:  # auto
+        use_cuda = torch.cuda.is_available()
+        device = torch.device('cuda' if use_cuda else 'cpu')
+        if use_cuda:
+            logger.info(f"Auto-detected CUDA device: {torch.cuda.get_device_name()}")
+        else:
+            logger.info("Auto-detected CPU (CUDA not available)")
+    
+    return device
+
+
+def validate_dataset(dataset_path: str, dataset_name: str) -> Optional[Any]:
+    """Validate and load dataset with comprehensive checks.
+    
+    Args:
+        dataset_path (str): Path to dataset pickle file
+        dataset_name (str): Name of dataset for logging
+        
+    Returns:
+        Optional[Any]: Loaded dataset or None if validation fails
+    """
+    logger = logging.getLogger(__name__)
+    
+    # Check if file exists
+    if not os.path.exists(dataset_path):
+        logger.error(f"Dataset file not found: {dataset_path}")
+        return None
+    
+    # Check file size
+    file_size = os.path.getsize(dataset_path)
+    if file_size == 0:
+        logger.error(f"Dataset file is empty: {dataset_path}")
+        return None
+    
+    # Load and validate dataset
+    try:
+        data = load_pickle(dataset_path)
+        if data is None:
+            logger.error(f"Dataset loaded as None: {dataset_name}")
+            return None
+        
+        if len(data) == 0:
+            logger.error(f"Dataset is empty: {dataset_name}")
+            return None
+        
+        logger.info(f"✓ Dataset '{dataset_name}' loaded: {len(data)} samples ({file_size / (1024*1024):.1f} MB)")
+        return data
+        
+    except Exception as e:
+        logger.error(f"Error loading dataset '{dataset_name}' from {dataset_path}: {e}")
+        return None
+
+
+def train_model_combination(
+    network_name: str, 
+    dataset_name: str, 
+    ae_config: Any, 
+    deepsvdd_config: Any, 
+    trainer_config: Any,
+    data: Any, 
+    device: torch.device
+) -> Optional[Tuple[Dict[str, str], Any, Any]]:
+    """Train a single model combination with comprehensive error handling.
+    
+    Args:
+        network_name (str): Name of the network configuration
+        dataset_name (str): Name of the dataset
+        ae_config: AutoEncoder configuration
+        deepsvdd_config: DeepSVDD configuration
+        trainer_config: Trainer configuration
+        data: Dataset to train on
+        device: PyTorch device
+        
+    Returns:
+        Optional[Tuple]: (best_model_paths, trained_model, center) or None if failed
+    """
+    logger = logging.getLogger(__name__)
+    model_id = f"{network_name}-{dataset_name}"
+    
+    logger.info(f"🏋️  Training model: {model_id}")
+    
+    try:
+        # Initialize trainer with error handling
+        trainer = DeepSVDDTrainer(
+            [ae_config.model_dump(), deepsvdd_config.model_dump()],
+            data,
+            device,
+            **trainer_config.model_dump()
+        )
+        logger.info(f"✓ Trainer initialized for {model_id}")
+        
+    except Exception as e:
+        logger.error(f"✗ Failed to initialize trainer for {model_id}: {e}")
+        return None
+    
+    try:
+        # Run training with progress logging
+        logger.info(f"🚀 Starting training for {model_id}")
+        trainer.run(model_id)
+        logger.info(f"✅ Training completed successfully for {model_id}")
+        
+        # Extract results
+        best_model_paths = trainer.get_best_model_path()
+        trained_model = trainer.get_trained_dsvdd_model()
+        center = trainer.get_center()
+        
+        return best_model_paths, trained_model, center
+        
+    except Exception as e:
+        logger.error(f"❌ Training failed for {model_id}: {e}")
+        return None
+
+
+def organize_model_files(
+    network_name: str,
+    dataset_name: str, 
+    best_model_paths: Dict[str, str],
+    center: Any,
+    target_dir: str
+) -> Optional[Dict[str, str]]:
+    """Organize trained model files into structured directory layout.
+    
+    Args:
+        network_name (str): Network configuration name
+        dataset_name (str): Dataset name
+        best_model_paths (Dict[str, str]): Dictionary of model paths
+        center: Center data to save
+        target_dir (str): Target directory for organized files
+        
+    Returns:
+        Optional[Dict[str, str]]: New file paths or None if failed
+    """
+    logger = logging.getLogger(__name__)
+    base_name = f"{network_name}-{dataset_name}"
+    
+    try:
+        # Extract model paths
+        ae_ckpt_path = best_model_paths[base_name + "-AE"]
+        svdd_ckpt_path = best_model_paths[base_name + "-DSVDD"]
+        
+        # Create destination directory
+        destination_dir = os.path.join(target_dir, network_name)
+        create_folder(destination_dir)
+        logger.debug(f"Created directory: {destination_dir}")
+        
+        # Move and rename files
+        ae_new_path, svdd_new_path = move_and_rename_files(
+            [ae_ckpt_path, svdd_ckpt_path], 
+            destination_dir
+        )
+        logger.info(f"✓ Model files organized for {base_name}")
+        
+        # Save center data as pickle file
+        center_file_path = os.path.splitext(ae_new_path)[0] + '_z_vector.pkl'
+        ph = PickleHandler(center_file_path)
+        ph.dump_data(center)
+        logger.debug(f"Saved center vector: {center_file_path}")
+        
+        return {
+            base_name + "-AE": ae_new_path,
+            base_name + "-DSVDD": svdd_new_path
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to organize model files for {base_name}: {e}")
+        return None
+
+
+def save_model_registry(
+    organized_paths: Dict[str, Dict[str, str]], 
+    config_name: str
+) -> None:
+    """Save model paths to JSON file for legacy compatibility.
+    
+    Args:
+        organized_paths (Dict): Dictionary of organized model paths
+        config_name (str): Configuration name for file naming
+    """
+    logger = logging.getLogger(__name__)
+    
+    try:
+        output_path = f'./checkpoints/{config_name}_best_models_path.json'
+        write_to_json(organized_paths, output_path)
+        logger.info(f"✓ Model registry saved: {output_path}")
+    except Exception as e:
+        logger.error(f"Failed to save model registry: {e}")
+
+
+def update_checkpoint_registry(config_name: str) -> None:
+    """Update the checkpoint registry with discovered models.
+    
+    Args:
+        config_name (str): Configuration name to update registry for
+    """
+    logger = logging.getLogger(__name__)
+    
+    try:
+        checkpoint_registry = get_checkpoint_registry()
+        discovered_checkpoints = checkpoint_registry.get_experiment_checkpoints(config_name)
+        logger.info(f"✓ Checkpoint registry updated with {len(discovered_checkpoints)} model combinations")
+    except Exception as e:
+        logger.warning(f"Could not update checkpoint registry: {e}")
+
+
+def display_training_summary(
+    successful_models: int, 
+    total_models: int, 
+    failed_models: list
+) -> None:
+    """Display comprehensive training summary.
+    
+    Args:
+        successful_models (int): Number of successfully trained models
+        total_models (int): Total number of model combinations attempted
+        failed_models (list): List of failed model identifiers
+    """
+    logger = logging.getLogger(__name__)
+    
+    logger.info("=" * 60)
+    logger.info("🎯 TRAINING SUMMARY")
+    logger.info("=" * 60)
+    logger.info(f"✅ Successful models: {successful_models}/{total_models}")
+    logger.info(f"❌ Failed models: {len(failed_models)}")
+    
+    if failed_models:
+        logger.info("Failed model combinations:")
+        for model_id in failed_models:
+            logger.info(f"  - {model_id}")
+    
+    success_rate = (successful_models / total_models) * 100 if total_models > 0 else 0
+    logger.info(f"📊 Success rate: {success_rate:.1f}%")
+    logger.info("=" * 60)
+
+
+def main(config_name: str = "exp1", device_override: str = "auto", log_level: str = "INFO") -> bool:
+    """Main function to train DeepSVDD models with comprehensive error handling and logging.
     
     Args:
         config_name (str): Name of the experiment configuration to use
         device_override (str): Device override ('auto', 'cpu', 'cuda')
+        log_level (str): Logging level for output verbosity
+        
+    Returns:
+        bool: True if training completed successfully, False otherwise
     """
-    # Initialize device with override support
-    if device_override == "cpu":
-        device = torch.device('cpu')
-    elif device_override == "cuda":
-        if not torch.cuda.is_available():
-            print("Warning: CUDA requested but not available, falling back to CPU")
-            device = torch.device('cpu')
-        else:
-            device = torch.device('cuda')
-    else:  # auto
-        use_cuda = torch.cuda.is_available()
-        device = torch.device('cuda' if use_cuda else 'cpu')
+    # Setup logging
+    logger = setup_logging(log_level)
+    logger.info("🚀 Starting DeepSVDD model training")
+    logger.info(f"Configuration: {config_name}")
     
-    print(f'Using device: {device}')
+    # Initialize device
+    device = initialize_device(device_override)
     
     # Load and validate configurations
     try:
         configs = load_experiment_config(config_name)
-        print(f"Loaded configuration: {configs.config_name}")
+        logger.info(f"✓ Configuration loaded: {configs.config_name}")
+        logger.info(f"  Networks: {list(configs.networks.keys())}")
+        logger.info(f"  Datasets: {list(configs.dataset_paths.keys())}")
     except Exception as e:
-        print(f"Error loading configuration '{config_name}': {e}")
-        return
+        logger.error(f"❌ Error loading configuration '{config_name}': {e}")
+        return False
+    
+    # Initialize tracking variables
     trained_models = {}
     best_models_paths = {}
     centers = {}
+    failed_models = []
+    successful_models = 0
+    
+    # Calculate total combinations
+    total_combinations = len(configs.networks) * len(configs.dataset_paths)
+    logger.info(f"📋 Training {total_combinations} model combinations")
     
     # Train models for each network configuration and dataset combination
-    for name, AE_config in configs.networks.items():
-        for dataset_name, path in configs.dataset_paths.items():
-            print(f"Training model: {name} on dataset: {dataset_name}")
+    combination_count = 0
+    for network_name, ae_config in configs.networks.items():
+        for dataset_name, dataset_path in configs.dataset_paths.items():
+            combination_count += 1
+            model_id = f"{network_name}-{dataset_name}"
             
-            # Load and validate dataset
-            try:
-                data = load_pickle(path)
-                if data is None or len(data) == 0:
-                    print(f"Warning: Empty or invalid dataset at {path}")
-                    continue
-                print(f"Dataset loaded: {len(data)} samples")
-            except Exception as e:
-                print(f"Error loading dataset {path}: {e}")
+            logger.info(f"📍 Processing combination {combination_count}/{total_combinations}: {model_id}")
+            
+            # Validate and load dataset
+            data = validate_dataset(dataset_path, dataset_name)
+            if data is None:
+                failed_models.append(model_id)
                 continue
             
-            # Initialize and run trainer with error handling
-            try:
-                trainer = DeepSVDDTrainer([AE_config.dict(), configs.deepSVDD.dict()], 
-                                          data, 
-                                          device, 
-                                          **configs.trainer.dict())
-            except Exception as e:
-                print(f"Error initializing trainer for {name}-{dataset_name}: {e}")
+            # Train model combination
+            training_result = train_model_combination(
+                network_name, dataset_name, ae_config, 
+                configs.deepSVDD, configs.trainer, data, device
+            )
+            
+            if training_result is None:
+                failed_models.append(model_id)
                 continue
             
-            # Run training with error handling
-            try:
-                trainer.run(f"{name}-{dataset_name}")
-                print(f"Training completed successfully for {name}-{dataset_name}")
-            except Exception as e:
-                print(f"Training failed for {name}-{dataset_name}: {e}")
-                continue
-            
-            # Store best model paths, trained models, and centers
-            best_models_paths[f"{name}-{dataset_name}"] = trainer.get_best_model_path()
-            trained_models[f"{name}-{dataset_name}"] = trainer.get_trained_dsvdd_model()
-            centers[f"{name}-{dataset_name}"] = trainer.get_center()
+            # Store successful training results
+            best_model_paths, trained_model, center = training_result
+            best_models_paths[model_id] = best_model_paths
+            trained_models[model_id] = trained_model
+            centers[model_id] = center
+            successful_models += 1
+    
+    # Check if any models were trained successfully
+    if successful_models == 0:
+        logger.error("❌ No models were trained successfully")
+        display_training_summary(successful_models, total_combinations, failed_models)
+        return False
     
     # Organize and save trained models
+    logger.info("📁 Organizing model files...")
     subfolder = configs.config_name.upper()
     target_dir = f"./checkpoints/loop_benchmark/{subfolder}"
     
-    new_paths = {}
-    for name, AE_config in configs.networks.items():
-        for dataset_name, path in configs.dataset_paths.items():
-            base_name = f"{name}-{dataset_name}"
-            ae_ckpt_path = best_models_paths[base_name][base_name+"-AE"]
-            svdd_ckpt_path = best_models_paths[base_name][base_name+"-DSVDD"]
+    organized_paths = {}
+    for network_name, ae_config in configs.networks.items():
+        for dataset_name, dataset_path in configs.dataset_paths.items():
+            model_id = f"{network_name}-{dataset_name}"
             
-            # Create destination directory
-            destination_dir = os.path.join(target_dir, name)
-            create_folder(destination_dir)
+            # Skip failed models
+            if model_id not in best_models_paths:
+                continue
             
-            # Move and rename files
-            ae_new_path, svdd_new_path = move_and_rename_files([ae_ckpt_path, svdd_ckpt_path], destination_dir)
+            # Organize model files
+            new_paths = organize_model_files(
+                network_name, dataset_name,
+                best_models_paths[model_id],
+                centers[model_id],
+                target_dir
+            )
             
-            # Save center data as pickle file
-            file_path = os.path.splitext(ae_new_path)[0] + '_z_vector.pkl'
-            ph = PickleHandler(file_path)
-            ph.dump_data(centers[base_name])
-            
-            # Store new paths
-            new_paths[base_name] = {base_name+"-AE": ae_new_path, 
-                                    base_name+"-DSVDD": svdd_new_path}
+            if new_paths:
+                organized_paths[model_id] = new_paths
     
-    # Save best model paths to JSON file (legacy compatibility)
-    write_to_json(new_paths, f'./checkpoints/{configs.config_name}_best_models_path.json')
+    # Save model registry and update checkpoint registry
+    if organized_paths:
+        save_model_registry(organized_paths, configs.config_name)
+        update_checkpoint_registry(configs.config_name)
     
-    # Register checkpoints in the new system
+    # Display final summary
+    display_training_summary(successful_models, total_combinations, failed_models)
+    
+    logger.info("🎉 Training process completed")
+    return successful_models > 0
+
+
+def validate_configuration(config_name: str) -> bool:
+    """Validate configuration without training (dry-run mode).
+    
+    Args:
+        config_name (str): Configuration name to validate
+        
+    Returns:
+        bool: True if configuration is valid, False otherwise
+    """
+    logger = setup_logging("INFO")
+    
     try:
-        checkpoint_registry = get_checkpoint_registry()
-        discovered_checkpoints = checkpoint_registry.get_experiment_checkpoints(configs.config_name)
-        print(f"Checkpoint registry updated with {len(discovered_checkpoints)} model combinations")
+        configs = load_experiment_config(config_name)
+        logger.info(f"✓ Configuration '{config_name}' is valid")
+        logger.info(f"  Networks: {list(configs.networks.keys())}")
+        logger.info(f"  Datasets: {list(configs.dataset_paths.keys())}")
+        logger.info(f"  Batch size: {configs.trainer.batch_size}")
+        logger.info(f"  Max epochs: {configs.trainer.max_epochs}")
+        
+        # Validate dataset paths
+        logger.info("📂 Validating dataset paths...")
+        for dataset_name, dataset_path in configs.dataset_paths.items():
+            if os.path.exists(dataset_path):
+                file_size = os.path.getsize(dataset_path)
+                logger.info(f"  ✓ {dataset_name}: {dataset_path} ({file_size / (1024*1024):.1f} MB)")
+            else:
+                logger.warning(f"  ⚠️  {dataset_name}: {dataset_path} (file not found)")
+        
+        return True
+        
     except Exception as e:
-        print(f"Warning: Could not update checkpoint registry: {e}")
-    
-    print("Training completed and model paths saved.")
+        logger.error(f"✗ Configuration validation failed: {e}")
+        return False
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train DeepSVDD models for anomaly detection")
-    parser.add_argument("--config", type=str, default="exp1", 
-                       help="Experiment configuration name (default: exp1)")
-    parser.add_argument("--device", type=str, choices=["auto", "cpu", "cuda"], default="auto",
-                       help="Device to use for training (default: auto)")
-    parser.add_argument("--dry-run", action="store_true",
-                       help="Validate configuration without training")
+    parser = argparse.ArgumentParser(
+        description="Train DeepSVDD models for anomaly detection",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python train_models.py                                    # Train with default config (exp1)
+  python train_models.py --config exp2_deeper             # Train specific experiment
+  python train_models.py --config exp1 --dry-run          # Validate configuration only
+  python train_models.py --config exp1 --device cpu       # Force CPU training
+  python train_models.py --config exp2_deeper --device cuda # GPU training
+  python train_models.py --log-level DEBUG                # Verbose logging
+        """
+    )
+    
+    parser.add_argument(
+        "--config", 
+        type=str, 
+        default="exp1",
+        help="Experiment configuration name (default: exp1)"
+    )
+    parser.add_argument(
+        "--device", 
+        type=str, 
+        choices=["auto", "cpu", "cuda"], 
+        default="auto",
+        help="Device to use for training (default: auto)"
+    )
+    parser.add_argument(
+        "--dry-run", 
+        action="store_true",
+        help="Validate configuration without training"
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        default="INFO",
+        help="Logging level (default: INFO)"
+    )
     
     args = parser.parse_args()
     
     if args.dry_run:
-        # Validate configuration only
-        try:
-            configs = load_experiment_config(args.config)
-            print(f"✓ Configuration '{args.config}' is valid")
-            print(f"  Networks: {list(configs.networks.keys())}")
-            print(f"  Datasets: {list(configs.dataset_paths.keys())}")
-            print(f"  Batch size: {configs.trainer.batch_size}")
-            print(f"  Max epochs: {configs.trainer.max_epochs}")
-        except Exception as e:
-            print(f"✗ Configuration validation failed: {e}")
+        success = validate_configuration(args.config)
+        sys.exit(0 if success else 1)
     else:
-        main(args.config, args.device)
+        success = main(args.config, args.device, args.log_level)
+        sys.exit(0 if success else 1)

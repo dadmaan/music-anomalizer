@@ -130,6 +130,12 @@ python music_anomalizer/scripts/train_models.py --config exp1 --device cpu
 
 # GPU training with validation
 python music_anomalizer/scripts/train_models.py --config exp2_deeper --device cuda
+
+# Verbose logging for debugging
+python music_anomalizer/scripts/train_models.py --log-level DEBUG
+
+# Complete refactor with enhanced features (2025-08-20)
+python music_anomalizer/scripts/train_models.py --config exp1 --device auto --log-level INFO
 ```
 
 **Error Handling Improvements:**
@@ -381,13 +387,19 @@ checkpoints = registry.get_experiment_checkpoints("EXP2_DEEPER")
 
 **Scripts Enhanced:**
 
-#### train_models.py (Major Overhaul)
-- **Command-line Interface**: Added configurable experiments via `--config`, `--device`, `--dry-run`
-- **Device Management**: Explicit device selection with automatic fallback
-- **Configuration Validation**: Pydantic schema validation with detailed error reporting
-- **Robust Error Handling**: Continues training if individual models fail
-- **Dataset Validation**: Checks dataset existence and sample count before training
-- **Checkpoint Registry**: Integration with automatic checkpoint discovery system
+#### train_models.py (Major Overhaul - Enhanced 2025-08-20)
+- **Command-line Interface**: Added configurable experiments via `--config`, `--device`, `--dry-run`, `--log-level`
+- **Device Management**: Explicit device selection with automatic fallback and detailed device info logging
+- **Configuration Validation**: Pydantic schema validation with detailed error reporting and dataset path verification
+- **Robust Error Handling**: Continues training if individual models fail, with comprehensive error tracking and recovery
+- **Dataset Validation**: Advanced checks for dataset existence, file size, sample count, and data integrity
+- **Checkpoint Registry**: Integration with automatic checkpoint discovery system and legacy JSON compatibility
+- **Comprehensive Logging**: Structured logging with timestamps, progress indicators, and emoji-based status messages
+- **Modular Architecture**: Refactored into focused functions for better maintainability and testing
+- **Training Progress**: Real-time progress tracking with combination counters and success/failure statistics
+- **Enhanced CLI**: Rich help text with usage examples and comprehensive argument validation
+- **Return Codes**: Proper exit codes for integration with CI/CD pipelines and automation scripts
+- **Pydantic V2 Compatibility**: Updated from deprecated `.dict()` to `.model_dump()` method calls
 
 #### embedding_extraction_wav.py (Significant Enhancement)
 - **CLI Interface**: Added `--dataset`, `--output`, `--device`, `--workers`, `--model` arguments
@@ -429,6 +441,61 @@ checkpoints = registry.get_experiment_checkpoints("EXP2_DEEPER")
 4. **Maintainability**: Consistent patterns across all scripts
 5. **Performance**: Better device management and resource handling
 
+## Latest Refactoring Session (2025-08-20)
+
+### train_models.py Complete Overhaul
+
+**Purpose:** Major structural refactoring following reference documentation conventions with enhanced observability and reliability.
+
+**Key Architectural Changes:**
+1. **Modular Function Design**: Broke down monolithic main() function into focused, testable components:
+   - `setup_logging()`: Configurable logging with timestamps and formatting
+   - `initialize_device()`: Robust device initialization with detailed feedback
+   - `validate_dataset()`: Comprehensive dataset validation with integrity checks
+   - `train_model_combination()`: Single model training with isolated error handling
+   - `organize_model_files()`: File organization with proper error recovery
+   - `display_training_summary()`: Rich training summary with statistics
+
+2. **Enhanced Error Handling & Recovery**:
+   - Individual model failures don't abort entire training process
+   - Comprehensive error tracking with detailed logging
+   - Graceful degradation when datasets or models fail
+   - Return codes for CI/CD integration
+
+3. **Advanced Logging & Observability**:
+   - Structured logging with timestamps and severity levels
+   - Progress indicators with emoji-based status messages
+   - Real-time training progress with combination counters
+   - Success/failure statistics and detailed summaries
+   - Configurable log levels (DEBUG, INFO, WARNING, ERROR)
+
+4. **Configuration & Validation Improvements**:
+   - Enhanced dry-run mode with dataset path verification
+   - File size and integrity checks for datasets
+   - Advanced device detection with fallback mechanisms
+   - Pydantic v2 compatibility (model_dump() vs dict())
+
+5. **CLI Enhancement**:
+   - Rich help text with usage examples
+   - Comprehensive argument validation
+   - Support for --log-level parameter
+   - Proper exit codes for automation
+
+**Implementation Benefits:**
+- **Maintainability**: Clear separation of concerns with focused functions
+- **Testability**: Each function can be tested independently
+- **Reliability**: Continues processing despite individual failures
+- **Observability**: Comprehensive logging and progress tracking
+- **User Experience**: Clear feedback and helpful error messages
+- **Integration**: Proper exit codes for CI/CD pipelines
+
+**Technical Improvements:**
+- Fixed import issues that prevented script execution
+- Removed unused imports (datetime, Path, nn, load_json)
+- Updated deprecated Pydantic .dict() calls to .model_dump()
+- Enhanced type hints for better code documentation
+- Improved error message clarity and actionability
+
 ## Notes:
 - All scripts maintain the same functionality as the original notebooks
 - Configuration files now use YAML format with inheritance and validation
@@ -436,3 +503,4 @@ checkpoints = registry.get_experiment_checkpoints("EXP2_DEEPER")
 - All scripts support proper error handling and validation
 - Dependencies include pydantic and PyYAML for configuration management
 - Scripts are designed to be run from the project root directory
+- Latest refactoring follows modular design patterns for better maintainability
