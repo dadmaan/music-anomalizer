@@ -1,0 +1,46 @@
+{
+  "name": "Music Anomalizer Development",
+  "dockerComposeFile": ["../docker-compose.dev.yml"],
+  "service": "dev-shell",
+  "workspaceFolder": "/usr/src/app",
+
+  // Use 'postCreateCommand' to run commands after the container is created
+  // "postCreateCommand": "sudo /usr/local/bin/init-firewall.sh",
+  
+  // Configure tool-specific properties
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.flake8", 
+        "ms-toolsai.jupyter",
+        "redhat.vscode-yaml",
+        "ms-vscode.vscode-json"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/opt/conda/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.flake8Enabled": true,
+        "jupyter.notebookFileRoot": "${workspaceFolder}"
+      }
+    }
+  },
+
+  // Set environment variables
+  "containerEnv": {
+    "PYTHONPATH": "/usr/src/app"
+  },
+
+  // Forward ports for services
+  "forwardPorts": [8081, 8501],
+  "portsAttributes": {
+    "8081": {"label": "JupyterLab"},
+    "8501": {"label": "Streamlit"}
+  },
+
+  // Keep container running
+  "shutdownAction": "none",
+
+  // Enable GPU support if needed
+  "runArgs": ["--gpus", "all"]
+}
