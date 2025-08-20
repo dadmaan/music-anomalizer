@@ -176,3 +176,10 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Weights & Biases
+wandb/
+*.wandb
+wandb-metadata.json
+wandb-summary.json
+wandb_sweep_results_*.csv
