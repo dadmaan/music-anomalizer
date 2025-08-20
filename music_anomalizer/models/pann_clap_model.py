@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torchlibrosa.stft import Spectrogram, LogmelFilterBank
 from torchlibrosa.augmentation import SpecAugmentation
 
-from .utils import do_mixup, interpolate
+from ..utils import do_mixup, interpolate
 from .feature_fusion import iAFF, AFF, DAF
 
 
