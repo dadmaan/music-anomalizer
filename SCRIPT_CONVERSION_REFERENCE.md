@@ -169,25 +169,63 @@ python script/compare_analyze_models.py
 **Source:** `11_main_exp_benchmark.ipynb`
 
 **Purpose:**
-- Runs the main experiment benchmark evaluating different anomaly detection models on music datasets
+- Runs comprehensive benchmark evaluations of different anomaly detection models on music datasets
 - Evaluates baseline models (Isolation Forest, PCA Reconstruction Error)
-- Evaluates Deep SVDD models with visualization
-- Performs statistical analysis and generates plots for analysis of anomaly detection performance
+- Evaluates Deep SVDD models with latent space visualization
+- Performs statistical analysis and generates comparative plots
+- Provides comprehensive reporting and error handling
 
 **Key Functions:**
-- `set_random_seeds()`: Sets random seeds for reproducibility
-- `initialize_device()`: Initializes available devices (CUDA or CPU)
-- `load_configurations()`: Loads experiment configurations from JSON file
-- `evaluate_baseline_models()`: Evaluates baseline models on all datasets
-- `evaluate_deep_svdd_models()`: Evaluates Deep SVDD models on all datasets with visualization
-- `organize_results()`: Organizes results into train, validation, and threshold dictionaries
-- `create_visualizations()`: Creates visualizations for the results
-- `perform_statistical_analysis()`: Performs statistical analysis on the results
-- `main()`: Main function that orchestrates the experiment benchmark
+- `setup_logging()`: Configurable logging with timestamps and formatting
+- `set_random_seeds()`: Sets random seeds for reproducibility across all libraries
+- `initialize_device()`: Device initialization with fallback support
+- `validate_configuration()`: Validates experiment configuration and prerequisites
+- `validate_dataset()`: Validates and loads datasets with comprehensive checks
+- `evaluate_baseline_models()`: Evaluates baseline models with robust error handling
+- `evaluate_deep_svdd_models()`: Evaluates Deep SVDD models with visualization and error handling
+- `organize_results()`: Organizes results with error handling and summary statistics
+- `create_visualizations()`: Creates comprehensive visualizations with adaptive layouts
+- `perform_statistical_analysis()`: Performs statistical analysis with configurable target datasets
+- `display_benchmark_summary()`: Displays comprehensive execution summary
+- `main()`: Main orchestration function with comprehensive parameter control
+
+**Enhanced Features (2025-08-20):**
+- **Command-line Interface**: Comprehensive CLI with configurable parameters and examples
+- **Robust Error Handling**: Continues evaluation despite individual model/dataset failures
+- **Advanced Logging**: Structured logging with progress tracking and emoji status indicators
+- **Configuration Validation**: Pre-execution validation of configs, datasets, and checkpoints
+- **Flexible Visualization**: Adaptive plot layouts with optional saving and display control
+- **Statistical Analysis**: Configurable target datasets for pairwise significance testing
+- **Dry-run Mode**: Configuration validation without expensive model evaluation
+- **Device Management**: Intelligent device selection with detailed feedback
+- **Memory Management**: Proper cleanup and memory management throughout evaluation
+- **Modular Architecture**: Well-separated functions for maintainability and testing
 
 **Usage:**
 ```bash
-python script/main_exp_benchmark.py
+# Basic benchmark with default settings
+python music_anomalizer/scripts/main_exp_benchmark.py
+
+# Use different experiment configuration
+python music_anomalizer/scripts/main_exp_benchmark.py --config exp1
+
+# GPU evaluation with specific seed
+python music_anomalizer/scripts/main_exp_benchmark.py --device cuda --seed 42
+
+# Custom threshold without visualizations  
+python music_anomalizer/scripts/main_exp_benchmark.py --threshold 0.9 --no-viz
+
+# Save plots with verbose logging
+python music_anomalizer/scripts/main_exp_benchmark.py --save-plots --log-level DEBUG
+
+# Validate configuration only
+python music_anomalizer/scripts/main_exp_benchmark.py --dry-run
+
+# Headless environment (no plot display)
+python music_anomalizer/scripts/main_exp_benchmark.py --no-display --save-plots
+
+# Target specific dataset for statistical analysis
+python music_anomalizer/scripts/main_exp_benchmark.py --target-dataset HTSAT_base_musicradar_bass
 ```
 
 ### 7. loop_evaluation.py
@@ -495,6 +533,76 @@ checkpoints = registry.get_experiment_checkpoints("EXP2_DEEPER")
 - Updated deprecated Pydantic .dict() calls to .model_dump()
 - Enhanced type hints for better code documentation
 - Improved error message clarity and actionability
+
+### main_exp_benchmark.py Complete Overhaul (2025-08-20)
+
+**Purpose:** Major structural refactoring following reference documentation conventions with comprehensive benchmark capabilities.
+
+**Key Architectural Changes:**
+1. **Modular Function Design**: Broke down monolithic functions into focused, testable components:
+   - `setup_logging()`: Configurable logging with timestamps and proper formatting
+   - `initialize_device()`: Robust device initialization with detailed feedback and fallback
+   - `validate_configuration()`: Pre-execution validation of configs, datasets, and checkpoints
+   - `validate_dataset()`: Comprehensive dataset validation with integrity and size checks
+   - `evaluate_baseline_models()`: Baseline model evaluation with robust error handling
+   - `evaluate_deep_svdd_models()`: Deep SVDD evaluation with visualization and memory management
+   - `organize_results()`: Result organization with error handling and summary statistics
+   - `create_visualizations()`: Adaptive visualization with flexible layouts and error recovery
+   - `perform_statistical_analysis()`: Statistical testing with configurable target datasets
+   - `display_benchmark_summary()`: Comprehensive execution summary with success rates
+
+2. **Enhanced Error Handling & Recovery**:
+   - Individual model/dataset failures don't abort entire benchmark
+   - Comprehensive error tracking with detailed logging and recovery mechanisms
+   - Graceful degradation when visualizations or analyses fail
+   - Robust checkpoint and dataset validation before expensive operations
+   - Return codes for CI/CD integration
+
+3. **Advanced Logging & Observability**:
+   - Structured logging with timestamps and severity levels
+   - Progress indicators with emoji-based status messages and counters
+   - Real-time evaluation progress tracking across models and datasets
+   - Success/failure statistics and detailed execution summaries
+   - Configurable log levels with debug information for troubleshooting
+
+4. **Configuration & Validation Improvements**:
+   - Enhanced dry-run mode with comprehensive prerequisite validation
+   - Configuration, dataset, and checkpoint validation before execution
+   - Advanced device detection with detailed hardware information
+   - Pydantic model attribute access (replacing dictionary access patterns)
+   - File size and integrity checks for all datasets
+
+5. **CLI Enhancement & Flexibility**:
+   - Comprehensive CLI with 10+ configurable parameters
+   - Rich help text with detailed usage examples
+   - Support for headless environments (--no-display)
+   - Configurable visualization options (--save-plots, --no-viz)
+   - Statistical analysis target selection (--target-dataset)
+   - Flexible threshold and seed configuration
+   - Proper exit codes for automation and CI/CD
+
+6. **Visualization & Analysis Improvements**:
+   - Adaptive plot layouts based on available results
+   - Flexible model detection and dynamic subplot creation
+   - Optional plot saving and display control for different environments
+   - Robust statistical analysis with configurable target datasets
+   - Memory management with proper cleanup after visualizations
+
+**Implementation Benefits:**
+- **Maintainability**: Clear separation of concerns with focused, testable functions
+- **Reliability**: Continues evaluation despite individual component failures
+- **Flexibility**: Highly configurable for different experimental scenarios and environments
+- **Observability**: Comprehensive logging and progress tracking throughout execution
+- **User Experience**: Clear feedback, helpful error messages, and flexible usage options
+- **Integration**: Proper exit codes and headless operation for automation
+
+**Technical Improvements:**
+- Fixed configuration access patterns to use Pydantic model attributes
+- Enhanced type hints and documentation for all functions
+- Improved memory management with explicit cleanup operations  
+- Robust error handling patterns with contextual error messages
+- Eliminated hardcoded dataset names and made analysis more flexible
+- Added comprehensive parameter validation and error checking
 
 ## Notes:
 - All scripts maintain the same functionality as the original notebooks
