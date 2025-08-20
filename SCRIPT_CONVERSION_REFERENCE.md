@@ -71,25 +71,62 @@ python music_anomalizer/scripts/embedding_extraction_wav.py --checkpoint path/to
 **Source:** `6_hp_tuning_loop_detecton.ipynb`
 
 **Purpose:**
-- Performs hyperparameter tuning for an AutoEncoder model
-- Uses Weights & Biases (wandb) sweeps for systematic hyperparameter exploration
-- Trains models using PyTorch Lightning with proper module imports
-- Analyzes and visualizes results
+- Performs systematic hyperparameter tuning for AutoEncoder models using Weights & Biases (wandb) sweeps
+- Explores different configurations to identify optimal parameters that minimize validation loss
+- Orchestrates training of multiple model configurations using PyTorch Lightning
+- Analyzes results with statistical summaries and visualizations
+- Provides comprehensive error handling and progress tracking
 
 **Key Functions:**
-- `load_and_prepare_data()`: Loads and prepares data for training
-- `train()`: Trains the AutoEncoder model with given configuration
-- `sweep_callback()`: Executes the hyperparameter sweep
-- `analyze_results()`: Analyzes and visualizes the results
+- `setup_logging()`: Configurable logging with timestamps and formatting
+- `set_random_seeds()`: Sets random seeds for reproducibility across all libraries  
+- `initialize_device()`: Device initialization with fallback support
+- `validate_dataset()`: Validates and loads datasets with comprehensive checks
+- `prepare_data_loaders()`: Prepares train/validation data loaders with error handling
+- `create_sweep_config()`: Creates comprehensive sweep configuration with flexible parameters
+- `train_model()`: Trains AutoEncoder model with comprehensive error handling
+- `run_hyperparameter_sweep()`: Executes sweep with progress tracking and recovery
+- `analyze_results()`: Analyzes results with statistical summaries and visualizations
+- `create_analysis_plots()`: Creates visualization plots for hyperparameter analysis
+- `main()`: Main orchestration function with comprehensive parameter control
 
-**Enhanced Features (2025-08):**
-- **Fixed Module Imports**: Updated to use new package structure imports
-- **Proper Dependencies**: Uses `AutoEncoder` and `DatasetSampler` from new modules
-- **Error Handling**: Better handling of missing dependencies
+**Enhanced Features (2025-08-20):**
+- **Command-line Interface**: Comprehensive CLI with configurable datasets and sweep parameters
+- **Robust Error Handling**: Continues sweep despite individual run failures with comprehensive recovery
+- **Advanced Logging**: Structured logging with progress tracking and emoji status indicators  
+- **Dataset Validation**: Pre-execution validation with integrity checks and sample counting
+- **Flexible Configuration**: Customizable sweep parameters, methods, and hyperparameter ranges
+- **Statistical Analysis**: Comprehensive analysis with top results, summaries, and visualizations
+- **WandB Integration**: Conditional import handling and graceful degradation without WandB
+- **Memory Management**: Proper cleanup and resource management throughout sweep execution
+- **Modular Architecture**: Well-separated functions for maintainability and testing
+- **Results Management**: Save/load results to CSV with analysis-only mode
 
 **Usage:**
 ```bash
+# Basic hyperparameter tuning with defaults
 python music_anomalizer/scripts/hp_tuning_loop_detection.py
+
+# Use different dataset
+python music_anomalizer/scripts/hp_tuning_loop_detection.py --data data/bass_embeddings.pkl
+
+# GPU training with more sweep runs
+python music_anomalizer/scripts/hp_tuning_loop_detection.py --device cuda --runs 50
+
+# Bayesian optimization with custom epochs
+python music_anomalizer/scripts/hp_tuning_loop_detection.py --method bayes --epochs 100
+
+# Analyze existing results without running new sweep
+python music_anomalizer/scripts/hp_tuning_loop_detection.py --analyze results.csv
+
+# Custom WandB project with specific seed
+python music_anomalizer/scripts/hp_tuning_loop_detection.py --project MyProject --seed 42
+
+# Save results and disable plots (headless)  
+python music_anomalizer/scripts/hp_tuning_loop_detection.py --output sweep_results.csv --no-plots
+
+# Debug mode with verbose logging
+python music_anomalizer/scripts/hp_tuning_loop_detection.py --log-level DEBUG --runs 5
 ```
 
 ### 4. train_models.py
@@ -603,6 +640,80 @@ checkpoints = registry.get_experiment_checkpoints("EXP2_DEEPER")
 - Robust error handling patterns with contextual error messages
 - Eliminated hardcoded dataset names and made analysis more flexible
 - Added comprehensive parameter validation and error checking
+
+### hp_tuning_loop_detection.py Complete Overhaul (2025-08-20)
+
+**Purpose:** Major structural refactoring following reference documentation conventions with comprehensive hyperparameter tuning capabilities.
+
+**Key Architectural Changes:**
+1. **Modular Function Design**: Broke down monolithic code into focused, testable components:
+   - `setup_logging()`: Configurable logging with timestamps and proper formatting
+   - `set_random_seeds()`: Comprehensive random seed management across all libraries
+   - `initialize_device()`: Robust device initialization with detailed feedback and fallback
+   - `validate_dataset()`: Comprehensive dataset validation with integrity and size checks
+   - `prepare_data_loaders()`: Robust data loader creation with multiprocessing fallback
+   - `create_sweep_config()`: Flexible sweep configuration with customizable parameters
+   - `train_model()`: Individual model training with comprehensive error handling
+   - `run_hyperparameter_sweep()`: Sweep orchestration with progress tracking and recovery
+   - `analyze_results()`: Statistical analysis with comprehensive summaries and visualizations
+   - `create_analysis_plots()`: Multi-panel visualization generation with error recovery
+
+2. **Enhanced Error Handling & Recovery**:
+   - Individual sweep run failures don't abort entire sweep
+   - Comprehensive error tracking with detailed logging and graceful recovery  
+   - Conditional WandB import with graceful degradation when unavailable
+   - Robust multiprocessing fallback for data loading
+   - Memory management and proper cleanup after each training run
+   - Return codes for CI/CD integration
+
+3. **Advanced Logging & Observability**:
+   - Structured logging with timestamps and severity levels
+   - Progress indicators with emoji-based status messages and run counters
+   - Real-time sweep progress tracking across hyperparameter configurations
+   - Success/failure statistics and detailed execution summaries
+   - Configurable log levels with debug information for troubleshooting
+   - Top results reporting with validation loss comparisons
+
+4. **Configuration & Validation Improvements**:
+   - Enhanced dataset validation with file size, integrity, and format checks
+   - Flexible sweep configuration with customizable parameter ranges
+   - Advanced device detection with detailed hardware information
+   - Configurable hyperparameter search spaces and optimization methods
+   - Results persistence with CSV save/load functionality
+
+5. **CLI Enhancement & Flexibility**:
+   - Comprehensive CLI with 13+ configurable parameters
+   - Rich help text with detailed usage examples for different scenarios
+   - Support for different sweep methods (random, grid, Bayesian)
+   - Configurable dataset paths, batch sizes, and training parameters
+   - Analysis-only mode for existing results without running new sweeps
+   - Headless operation with plot generation control
+   - Proper exit codes for automation and CI/CD
+
+6. **Statistical Analysis & Visualization**:
+   - Comprehensive statistical summaries with descriptive statistics
+   - Multi-panel visualizations showing loss distributions and hyperparameter effects
+   - Top results ranking and comparison functionality
+   - Error filtering and data cleaning for robust analysis
+   - Adaptive plotting based on available hyperparameter columns
+
+**Implementation Benefits:**
+- **Maintainability**: Clear separation of concerns with focused, testable functions
+- **Reliability**: Continues hyperparameter search despite individual run failures
+- **Flexibility**: Highly configurable for different datasets, models, and search strategies
+- **Observability**: Comprehensive logging and progress tracking throughout sweep execution
+- **User Experience**: Clear feedback, helpful error messages, and flexible usage options
+- **Integration**: Proper exit codes and headless operation for automation
+- **Scientific Rigor**: Reproducible experiments with proper seed management and validation
+
+**Technical Improvements:**
+- Conditional dependency imports with graceful degradation
+- Enhanced type hints and comprehensive documentation for all functions
+- Improved memory management with explicit cleanup operations
+- Robust error handling patterns with contextual error messages
+- Eliminated hardcoded paths and made all parameters configurable
+- Added comprehensive parameter validation and error checking
+- Proper WandB run management with cleanup and error recovery
 
 ## Notes:
 - All scripts maintain the same functionality as the original notebooks
