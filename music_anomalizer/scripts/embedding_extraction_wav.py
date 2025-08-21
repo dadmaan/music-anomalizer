@@ -85,21 +85,21 @@ def initialize_device(device_override: Optional[str] = None) -> torch.device:
     
     if device_override == 'cpu':
         device = torch.device('cpu')
-        logger.info("🔧 Using CPU (forced)")
+        logger.info(" Using CPU (forced)")
     elif device_override == 'cuda':
         if torch.cuda.is_available():
             device = torch.device('cuda')
-            logger.info(f"🚀 Using CUDA: {torch.cuda.get_device_name()}")
+            logger.info(f" Using CUDA: {torch.cuda.get_device_name()}")
         else:
             device = torch.device('cpu')
-            logger.warning("⚠️ CUDA requested but not available, falling back to CPU")
+            logger.warning(" CUDA requested but not available, falling back to CPU")
     else:
         if torch.cuda.is_available():
             device = torch.device('cuda')
-            logger.info(f"🚀 Auto-selected CUDA: {torch.cuda.get_device_name()}")
+            logger.info(f" Auto-selected CUDA: {torch.cuda.get_device_name()}")
         else:
             device = torch.device('cpu')
-            logger.info("🔧 Auto-selected CPU (CUDA not available)")
+            logger.info(" Auto-selected CPU (CUDA not available)")
     
     return device
 
@@ -130,7 +130,7 @@ def validate_dataset_path(dataset_path: Path) -> Tuple[bool, str]:
     if not audio_files:
         return False, f"No audio files found in {dataset_path} (searched for {', '.join(audio_extensions)})"
     
-    logger.debug(f"📊 Found {len(audio_files)} audio files in dataset")
+    logger.debug(f" Found {len(audio_files)} audio files in dataset")
     return True, ""
 
 
@@ -179,9 +179,9 @@ def initialize_clap_model(checkpoint_path: str, audio_model: str, device: torch.
         raise ValueError("laion_clap library not available. Please install it to use CLAP models.")
     
     try:
-        logger.info("🤖 Initializing CLAP model...")
-        logger.info(f"   📍 Model variant: {audio_model}")
-        logger.info(f"   🔗 Fusion enabled: {enable_fusion}")
+        logger.info(" Initializing CLAP model...")
+        logger.info(f"    Model variant: {audio_model}")
+        logger.info(f"    Fusion enabled: {enable_fusion}")
         
         # Validate checkpoint
         checkpoint_path_obj = Path(checkpoint_path)
@@ -190,23 +190,23 @@ def initialize_clap_model(checkpoint_path: str, audio_model: str, device: torch.
             raise ValueError(error_msg)
         
         file_size = checkpoint_path_obj.stat().st_size / (1024 * 1024)  # MB
-        logger.info(f"   📦 Checkpoint size: {file_size:.1f} MB")
+        logger.info(f"    Checkpoint size: {file_size:.1f} MB")
         
         # Initialize model
         clap_model = laion_clap.CLAP_Module(enable_fusion=enable_fusion, amodel=audio_model)
         
-        logger.info("📥 Loading checkpoint...")
+        logger.info(" Loading checkpoint...")
         clap_model.load_ckpt(checkpoint_path)
         
         # Move to device
         clap_model.to(device)
         clap_model.eval()
         
-        logger.info("✅ CLAP model initialized successfully")
+        logger.info(" CLAP model initialized successfully")
         return clap_model
         
     except Exception as e:
-        logger.error(f"❌ Failed to initialize CLAP model: {e}")
+        logger.error(f" Failed to initialize CLAP model: {e}")
         raise ValueError(f"CLAP model initialization failed: {e}") from e
 
 
@@ -229,7 +229,7 @@ def get_audio_files(dataset_path: Path) -> List[Path]:
         files = list(dataset_path.glob(f"**/{ext}"))
         audio_files.extend(files)
         if files:
-            logger.debug(f"📁 Found {len(files)} {ext.replace('*', '')} files")
+            logger.debug(f" Found {len(files)} {ext.replace('*', '')} files")
     
     # Sort for consistent ordering
     audio_files.sort()
@@ -293,7 +293,7 @@ def extract_embedding(model: Any, audio_path: Path, device: torch.device,
         return audio_embed
         
     except Exception as e:
-        logger.debug(f"⚠️ Error processing file {audio_path.name}: {str(e)}")
+        logger.debug(f" Error processing file {audio_path.name}: {str(e)}")
         return None
 
 
@@ -355,13 +355,13 @@ def run_process(audio_paths: List[Path], model: Any, device: torch.device,
     """
     logger = logging.getLogger('embedding_extraction')
     
-    index_file = output_file.with_suffix('').with_suffix('_index.pkl')
+    index_file = output_file.parent / (output_file.stem + '_index.pkl')
     
-    logger.info(f"🔄 Processing {len(audio_paths)} audio files...")
-    logger.info(f"   👥 Workers: {max_workers}")
-    logger.info(f"   🎯 Extract features: {extract_features}")
-    logger.info(f"   💾 Output: {output_file}")
-    logger.info(f"   📑 Index: {index_file}")
+    logger.info(f" Processing {len(audio_paths)} audio files...")
+    logger.info(f"    Workers: {max_workers}")
+    logger.info(f"    Extract features: {extract_features}")
+    logger.info(f"    Output: {output_file}")
+    logger.info(f"    Index: {index_file}")
     
     processed_data = []
     index_data = []
@@ -388,7 +388,7 @@ def run_process(audio_paths: List[Path], model: Any, device: torch.device,
                         failed_files.append(path)
                         
                 except Exception as e:
-                    logger.debug(f"⚠️ Worker exception: {e}")
+                    logger.debug(f" Worker exception: {e}")
                     failed_files.append(path if 'path' in locals() else "unknown")
         
         # Generate processing statistics
@@ -401,7 +401,7 @@ def run_process(audio_paths: List[Path], model: Any, device: torch.device,
         
         # Save results if any successful processing occurred
         if processed_data:
-            logger.info(f"💾 Saving {len(processed_data)} embeddings...")
+            logger.info(f" Saving {len(processed_data)} embeddings...")
             
             # Save embeddings
             embeddings_array = np.array(processed_data)
@@ -412,32 +412,32 @@ def run_process(audio_paths: List[Path], model: Any, device: torch.device,
             index_handler = PickleHandler(str(index_file))
             index_handler.dump_data(index_data)
             
-            logger.info(f"✅ Embeddings saved: {output_file}")
-            logger.info(f"✅ Index saved: {index_file}")
-            logger.info(f"   📊 Shape: {embeddings_array.shape}")
+            logger.info(f" Embeddings saved: {output_file}")
+            logger.info(f" Index saved: {index_file}")
+            logger.info(f"    Shape: {embeddings_array.shape}")
             
             stats['output_files'] = [str(output_file), str(index_file)]
             stats['embedding_shape'] = embeddings_array.shape
             
         else:
-            logger.warning("❌ No valid embeddings to save")
+            logger.warning(" No valid embeddings to save")
             stats['output_files'] = []
         
         # Report failed files if any
         if failed_files:
-            logger.warning(f"⚠️ Failed to process {len(failed_files)} files")
+            logger.warning(f" Failed to process {len(failed_files)} files")
             if logger.level <= logging.DEBUG:
                 for failed_file in failed_files[:5]:  # Show first 5 failures
-                    logger.debug(f"   ❌ {failed_file}")
+                    logger.debug(f"    {failed_file}")
                 if len(failed_files) > 5:
                     logger.debug(f"   ... and {len(failed_files) - 5} more")
         
-        logger.info(f"✅ Processing completed: {stats['successful']}/{stats['total_files']} successful ({stats['success_rate']:.1f}%)")
+        logger.info(f" Processing completed: {stats['successful']}/{stats['total_files']} successful ({stats['success_rate']:.1f}%)")
         
         return stats
         
     except Exception as e:
-        logger.error(f"❌ Processing failed: {e}")
+        logger.error(f" Processing failed: {e}")
         raise ValueError(f"Embedding extraction failed: {e}") from e
 
 
@@ -472,7 +472,7 @@ def process_dataset(dataset_path: Path, output_dir: Path, clap_model: Any, devic
         
         # Create output directory
         output_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"📁 Output directory: {output_dir}")
+        logger.info(f" Output directory: {output_dir}")
         
         # Generate output filename
         output_filename = create_output_filename(
@@ -505,11 +505,11 @@ def process_dataset(dataset_path: Path, output_dir: Path, clap_model: Any, devic
             'extract_features': config['extract_features']
         })
         
-        logger.info("🎉 Dataset processing completed successfully")
+        logger.info(" Dataset processing completed successfully")
         return stats
         
     except Exception as e:
-        logger.error(f"❌ Dataset processing failed: {e}")
+        logger.error(f" Dataset processing failed: {e}")
         raise ValueError(f"Dataset processing failed: {e}") from e
 
 
@@ -641,11 +641,11 @@ def validate_configuration(args: argparse.Namespace) -> Dict[str, Any]:
             'output_name': args.output_name
         })
         
-        logger.info("✅ Configuration validation successful")
+        logger.info(" Configuration validation successful")
         return config
         
     except Exception as e:
-        logger.error(f"❌ Configuration validation failed: {e}")
+        logger.error(f" Configuration validation failed: {e}")
         raise
 
 
@@ -658,25 +658,25 @@ def display_execution_summary(stats: Dict[str, Any]):
     logger = logging.getLogger('embedding_extraction')
     
     logger.info("\\n" + "="*60)
-    logger.info("📊 EXECUTION SUMMARY")
+    logger.info(" EXECUTION SUMMARY")
     logger.info("="*60)
     
-    logger.info(f"🎵 Dataset: {Path(stats['dataset_path']).name}")
-    logger.info(f"🤖 Model: {stats['model_variant']}")
-    logger.info(f"🎯 Feature extraction: {stats['extract_features']}")
+    logger.info(f" Dataset: {Path(stats['dataset_path']).name}")
+    logger.info(f" Model: {stats['model_variant']}")
+    logger.info(f" Feature extraction: {stats['extract_features']}")
     
-    logger.info(f"📁 Total files: {stats['total_files']}")
-    logger.info(f"✅ Successful: {stats['successful']}")
-    logger.info(f"❌ Failed: {stats['failed']}")
-    logger.info(f"📈 Success rate: {stats['success_rate']:.1f}%")
+    logger.info(f" Total files: {stats['total_files']}")
+    logger.info(f" Successful: {stats['successful']}")
+    logger.info(f" Failed: {stats['failed']}")
+    logger.info(f" Success rate: {stats['success_rate']:.1f}%")
     
     if 'embedding_shape' in stats:
-        logger.info(f"📊 Embedding shape: {stats['embedding_shape']}")
+        logger.info(f" Embedding shape: {stats['embedding_shape']}")
     
     if 'output_files' in stats and stats['output_files']:
-        logger.info("💾 Output files:")
+        logger.info(" Output files:")
         for output_file in stats['output_files']:
-            logger.info(f"   📄 {Path(output_file).name}")
+            logger.info(f"    {Path(output_file).name}")
     
     logger.info("="*60)
 
@@ -691,24 +691,24 @@ def main() -> int:
     logger = setup_logging(args.log_level)
     
     try:
-        logger.info("🎵 Starting audio embedding extraction...")
-        logger.info(f"📁 Dataset: {args.dataset}")
-        logger.info(f"📂 Output: {args.output}")
-        logger.info(f"💻 Device: {args.device}")
-        logger.info(f"🤖 Model: {args.model}")
+        logger.info(" Starting audio embedding extraction...")
+        logger.info(f" Dataset: {args.dataset}")
+        logger.info(f" Output: {args.output}")
+        logger.info(f" Device: {args.device}")
+        logger.info(f" Model: {args.model}")
         
         # Validate configuration
         config = validate_configuration(args)
         
         if args.dry_run:
-            logger.info("✅ Dry-run completed successfully - all validations passed")
+            logger.info(" Dry-run completed successfully - all validations passed")
             return 0
         
         # Initialize device
         device = initialize_device(args.device)
         
         # Initialize CLAP model
-        logger.info("🚀 Initializing CLAP model...")
+        logger.info(" Initializing CLAP model...")
         clap_model = initialize_clap_model(
             config['checkpoint_path'], 
             config['audio_model'], 
@@ -717,7 +717,7 @@ def main() -> int:
         )
         
         # Process dataset
-        logger.info("🔄 Starting dataset processing...")
+        logger.info(" Starting dataset processing...")
         stats = process_dataset(args.dataset, args.output, clap_model, device, config)
         
         # Display summary
@@ -725,20 +725,20 @@ def main() -> int:
         
         # Determine exit code based on success rate
         if stats['successful'] == 0:
-            logger.error("❌ No files processed successfully")
+            logger.error(" No files processed successfully")
             return 1
         elif stats['failed'] > 0:
-            logger.warning(f"⚠️ Partial success: {stats['failed']} files failed")
+            logger.warning(f" Partial success: {stats['failed']} files failed")
             return 0  # Still consider success if some files processed
         else:
-            logger.info("🎉 All files processed successfully!")
+            logger.info(" All files processed successfully!")
             return 0
         
     except KeyboardInterrupt:
-        logger.warning("\\n⚠️ Process interrupted by user")
+        logger.warning("\\n Process interrupted by user")
         return 1
     except Exception as e:
-        logger.error(f"❌ Execution failed: {e}")
+        logger.error(f" Execution failed: {e}")
         if args.log_level == 'DEBUG':
             logger.exception("Full traceback:")
         return 1
