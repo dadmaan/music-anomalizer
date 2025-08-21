@@ -30,27 +30,14 @@ import wandb
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from music_anomalizer.data.data_loader import DataHandler
-from music_anomalizer.utils import load_json, load_pickle, cleanup
+from music_anomalizer.utils import (
+    load_json, load_pickle, cleanup, set_deterministic_behavior, 
+    initialize_device, setup_logging
+)
 from music_anomalizer.config import load_experiment_config
 from music_anomalizer.evaluation.statistics import determine_threshold_by_boxcox, determine_threshold_by_quantile, determine_threshold_by_std_dev
 from music_anomalizer.models.anomaly_detector import AnomalyDetector
 from music_anomalizer.visualization.visualizer import LatentSpaceVisualizer
-
-
-def set_deterministic_behavior():
-    """Set deterministic behavior for reproducibility."""
-    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-    torch.set_float32_matmul_precision('medium')
-    random_seed = 0
-    pl.seed_everything(random_seed)
-
-
-def initialize_device():
-    """Initialize available devices (CPU or GPU)."""
-    use_cuda = torch.cuda.is_available()
-    device = torch.device('cuda' if use_cuda else 'cpu')
-    print('Using device:', device)
-    return device
 
 
 def load_configurations(config_name="exp2_deeper"):

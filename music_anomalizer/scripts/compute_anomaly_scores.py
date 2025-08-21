@@ -30,7 +30,9 @@ from tqdm import tqdm
 
 from music_anomalizer.config import load_experiment_config
 from music_anomalizer.models.anomaly_detector import AnomalyDetector
-from music_anomalizer.utils import load_pickle
+from music_anomalizer.utils import (
+    load_pickle, initialize_device, setup_logging, validate_dataset
+)
 
 # Default configuration
 DEFAULT_CONFIG = 'exp1'
@@ -50,92 +52,6 @@ def get_default_model_choices() -> Dict[str, Dict[str, Any]]:
             'dataset_name': 'HTSAT_base_musicradar_guitar',
         }
     }
-
-
-def setup_logging(log_level: str = 'INFO') -> logging.Logger:
-    """Configure logging with timestamps and proper formatting.
-    
-    Args:
-        log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
-    
-    Returns:
-        Configured logger instance
-    """
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    
-    logger = logging.getLogger('compute_anomaly_scores')
-    return logger
-
-
-def initialize_device(device_override: Optional[str] = None) -> torch.device:
-    """Initialize compute device with validation and fallback.
-    
-    Args:
-        device_override: Override device selection ('auto', 'cpu', 'cuda')
-    
-    Returns:
-        Validated torch device
-    """
-    logger = logging.getLogger('compute_anomaly_scores')
-    
-    if device_override == 'cpu':
-        device = torch.device('cpu')
-        logger.info(" Using CPU (forced)")
-    elif device_override == 'cuda':
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-            logger.info(f" Using CUDA: {torch.cuda.get_device_name()}")
-        else:
-            device = torch.device('cpu')
-            logger.warning(" CUDA requested but not available, falling back to CPU")
-    else:
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-            logger.info(f" Auto-selected CUDA: {torch.cuda.get_device_name()}")
-        else:
-            device = torch.device('cpu')
-            logger.info(" Auto-selected CPU (CUDA not available)")
-    
-    return device
-
-
-def validate_dataset(dataset_path: Path, dataset_index_path: Path) -> Tuple[bool, str]:
-    """Validate dataset files exist and contain valid data.
-    
-    Args:
-        dataset_path: Path to dataset pickle file
-        dataset_index_path: Path to dataset index pickle file
-    
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    logger = logging.getLogger('compute_anomaly_scores')
-    
-    if not dataset_path.exists():
-        return False, f"Dataset file not found: {dataset_path}"
-    
-    if not dataset_index_path.exists():
-        return False, f"Dataset index file not found: {dataset_index_path}"
-    
-    try:
-        # Check file sizes
-        dataset_size = dataset_path.stat().st_size / (1024 * 1024)  # MB
-        index_size = dataset_index_path.stat().st_size / (1024 * 1024)  # MB
-        
-        logger.debug(f" Dataset file size: {dataset_size:.1f} MB")
-        logger.debug(f" Index file size: {index_size:.1f} MB")
-        
-        if dataset_size < 0.1:  # Less than 0.1 MB is suspicious
-            return False, f"Dataset file seems too small: {dataset_size:.1f} MB"
-            
-        return True, ""
-        
-    except Exception as e:
-        return False, f"Error validating dataset files: {e}"
 
 
 def load_and_validate_data(dataset_path: Path, dataset_index_path: Path) -> Tuple[Any, List, Dict]:

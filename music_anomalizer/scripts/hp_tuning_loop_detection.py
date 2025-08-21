@@ -14,14 +14,14 @@ The script performs the following operations:
 5. Analyzes results with statistical summaries and visualizations
 6. Provides comprehensive error handling and progress tracking
 
-Enhanced Features:
-- Command-line interface with configurable datasets and sweep parameters
-- Robust error handling that continues sweep despite individual run failures
-- Comprehensive logging with progress tracking and status reporting
-- Dataset validation with integrity checks and sample counting
-- Flexible sweep configuration with customizable parameter ranges
-- Statistical analysis and visualization of hyperparameter sweep results
-- Integration with modern configuration system and checkpoint management
+Usage:
+    python hp_tuning_loop_detection.py                                   # Basic tuning with defaults
+    python hp_tuning_loop_detection.py --data data/bass_embeddings.pkl   # Use different dataset
+    python hp_tuning_loop_detection.py --device cuda --runs 50           # GPU with more runs
+    python hp_tuning_loop_detection.py --method bayes --epochs 100       # Bayesian optimization
+    python hp_tuning_loop_detection.py --analyze results.csv             # Analyze existing results
+python hp_tuning_loop_detection.py --project MyProject --seed 42     # Custom project and seed
+       
 """
 
 import os
@@ -50,6 +50,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import custom modules
 from music_anomalizer.models.networks import AutoEncoder
 from music_anomalizer.data.data_loader import DatasetSampler
+from music_anomalizer.utils import (
+    setup_logging, set_random_seeds, initialize_device, validate_dataset_file
+)
 
 # Conditional wandb import with error handling
 try:
@@ -58,118 +61,6 @@ try:
 except ImportError:
     WANDB_AVAILABLE = False
     print("Warning: wandb not available. Hyperparameter sweeps will be disabled.")
-
-
-def setup_logging(log_level: str = "INFO") -> logging.Logger:
-    """Setup logging configuration with timestamps and proper formatting.
-    
-    Args:
-        log_level (str): Logging level ('DEBUG', 'INFO', 'WARNING', 'ERROR')
-        
-    Returns:
-        logging.Logger: Configured logger instance
-    """
-    log_format = "[%(asctime)s] %(levelname)s - %(message)s"
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format=log_format,
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    return logging.getLogger(__name__)
-
-
-def set_random_seeds(seed: int = 0) -> int:
-    """Set random seeds for reproducibility across all libraries.
-    
-    Args:
-        seed (int): Random seed value
-        
-    Returns:
-        int: The seed value used
-    """
-    logger = logging.getLogger(__name__)
-    pl.seed_everything(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-    logger.info(f"🎯 Random seed set to {seed} for reproducibility")
-    return seed
-
-
-def initialize_device(device_override: str = "auto") -> Tuple[torch.device, bool]:
-    """Initialize computation device with fallback support.
-    
-    Args:
-        device_override (str): Device preference ('auto', 'cpu', 'cuda')
-        
-    Returns:
-        Tuple[torch.device, bool]: (device, use_cuda)
-    """
-    logger = logging.getLogger(__name__)
-    
-    if device_override == "cpu":
-        device = torch.device('cpu')
-        use_cuda = False
-        logger.info("🖥️  Using CPU (forced)")
-    elif device_override == "cuda":
-        if not torch.cuda.is_available():
-            logger.warning("⚠️  CUDA requested but not available, falling back to CPU")
-            device = torch.device('cpu')
-            use_cuda = False
-        else:
-            device = torch.device('cuda')
-            use_cuda = True
-            logger.info(f"🚀 Using CUDA device: {torch.cuda.get_device_name()}")
-    else:  # auto
-        use_cuda = torch.cuda.is_available()
-        device = torch.device('cuda' if use_cuda else 'cpu')
-        if use_cuda:
-            logger.info(f"🚀 Auto-detected CUDA device: {torch.cuda.get_device_name()}")
-        else:
-            logger.info("🖥️  Auto-detected CPU (CUDA not available)")
-    
-    return device, use_cuda
-
-
-def validate_dataset(data_path: str) -> Optional[np.ndarray]:
-    """Validate and load dataset with comprehensive checks.
-    
-    Args:
-        data_path (str): Path to dataset pickle file
-        
-    Returns:
-        Optional[np.ndarray]: Loaded dataset or None if validation fails
-    """
-    logger = logging.getLogger(__name__)
-    
-    # Check if file exists
-    if not os.path.exists(data_path):
-        logger.error(f"❌ Dataset file not found: {data_path}")
-        return None
-    
-    # Check file size
-    file_size = os.path.getsize(data_path)
-    if file_size == 0:
-        logger.error(f"❌ Dataset file is empty: {data_path}")
-        return None
-    
-    try:
-        with open(data_path, 'rb') as f:
-            data = pickle.load(f)
-        
-        if data is None:
-            logger.error(f"❌ Dataset loaded as None: {data_path}")
-            return None
-        
-        if not hasattr(data, 'shape') or len(data) == 0:
-            logger.error(f"❌ Invalid dataset format or empty: {data_path}")
-            return None
-        
-        logger.info(f"✅ Dataset loaded: {data.shape} ({file_size / (1024*1024):.1f} MB)")
-        return data
-        
-    except Exception as e:
-        logger.error(f"❌ Error loading dataset from {data_path}: {e}")
-        return None
 
 
 def prepare_data_loaders(
@@ -206,7 +97,7 @@ def prepare_data_loaders(
         train_data = data_shuffled[:num_train]
         val_data = data_shuffled[num_train:]
         
-        logger.info(f"📊 Data split - Train: {train_data.shape}, Validation: {val_data.shape}")
+        logger.info(f" Data split - Train: {train_data.shape}, Validation: {val_data.shape}")
         
         # Create data loaders with error handling for workers
         try:
@@ -227,19 +118,19 @@ def prepare_data_loaders(
             val_loader = DataLoader(DatasetSampler(val_data), **val_params)
             
         except Exception as e:
-            logger.warning(f"⚠️  Error with multiprocessing workers: {e}. Falling back to single-threaded.")
+            logger.warning(f"  Error with multiprocessing workers: {e}. Falling back to single-threaded.")
             train_params['num_workers'] = 0
             val_params['num_workers'] = 0
             train_loader = DataLoader(DatasetSampler(train_data), **train_params)
             val_loader = DataLoader(DatasetSampler(val_data), **val_params)
         
         num_features = data.shape[1]
-        logger.info(f"✅ Data loaders created successfully - Features: {num_features}")
+        logger.info(f" Data loaders created successfully - Features: {num_features}")
         
         return train_loader, val_loader, num_features
         
     except Exception as e:
-        logger.error(f"❌ Error preparing data loaders: {e}")
+        logger.error(f" Error preparing data loaders: {e}")
         raise
 
 
@@ -335,7 +226,7 @@ def train_model(
     logger = logging.getLogger(__name__)
     
     if not WANDB_AVAILABLE:
-        logger.error("❌ WandB not available. Cannot proceed with training.")
+        logger.error(" WandB not available. Cannot proceed with training.")
         return {}
     
     try:
@@ -346,7 +237,7 @@ def train_model(
             try:
                 activation_fn = getattr(nn, wandb_config.activation_fn)()
             except AttributeError:
-                logger.warning(f"⚠️  Unknown activation function: {wandb_config.activation_fn}. Using ReLU.")
+                logger.warning(f"  Unknown activation function: {wandb_config.activation_fn}. Using ReLU.")
                 activation_fn = nn.ReLU()
             
             # Initialize model with error handling
@@ -359,10 +250,10 @@ def train_model(
                     use_batch_norm=wandb_config.use_batch_norm,
                     learning_rate=wandb_config.learning_rate
                 )
-                logger.info(f"✅ Model initialized: {wandb_config.hidden_dims}")
+                logger.info(f" Model initialized: {wandb_config.hidden_dims}")
                 
             except Exception as e:
-                logger.error(f"❌ Model initialization failed: {e}")
+                logger.error(f" Model initialization failed: {e}")
                 return {"error": str(e)}
             
             # Initialize logger and callbacks
@@ -379,12 +270,12 @@ def train_model(
                     )
                     callbacks.append(checkpoint_callback)
                 except Exception as e:
-                    logger.warning(f"⚠️  Checkpointing setup failed: {e}")
+                    logger.warning(f"  Checkpointing setup failed: {e}")
             
             try:
                 wandb_logger = WandbLogger(log_model="all", project=project_name)
             except Exception as e:
-                logger.warning(f"⚠️  WandB logger setup failed: {e}")
+                logger.warning(f"  WandB logger setup failed: {e}")
                 wandb_logger = None
             
             # Initialize trainer with robust configuration
@@ -404,14 +295,14 @@ def train_model(
             try:
                 trainer = pl.Trainer(**trainer_args)
             except Exception as e:
-                logger.error(f"❌ Trainer initialization failed: {e}")
+                logger.error(f" Trainer initialization failed: {e}")
                 return {"error": str(e)}
             
             # Train the model with error handling
             try:
-                logger.info(f"🏋️  Starting training with {len(train_loader)} train batches, {len(val_loader)} val batches")
+                logger.info(f"  Starting training with {len(train_loader)} train batches, {len(val_loader)} val batches")
                 trainer.fit(model, train_loader, val_loader)
-                logger.info("✅ Training completed successfully")
+                logger.info(" Training completed successfully")
                 
                 # Collect metrics
                 metrics = dict(trainer.logged_metrics)
@@ -421,12 +312,12 @@ def train_model(
                     try:
                         metrics['best_model_path'] = callbacks[0].best_model_path
                     except Exception as e:
-                        logger.warning(f"⚠️  Could not retrieve best model path: {e}")
+                        logger.warning(f"  Could not retrieve best model path: {e}")
                 
                 return metrics
                 
             except Exception as e:
-                logger.error(f"❌ Training failed: {e}")
+                logger.error(f" Training failed: {e}")
                 return {"error": str(e)}
             
             finally:
@@ -437,7 +328,7 @@ def train_model(
                     pass
                 
     except Exception as e:
-        logger.error(f"❌ Training setup failed: {e}")
+        logger.error(f" Training setup failed: {e}")
         return {"error": str(e)}
 
 
@@ -467,7 +358,7 @@ def run_hyperparameter_sweep(
     logger = logging.getLogger(__name__)
     
     if not WANDB_AVAILABLE:
-        logger.error("❌ WandB not available. Cannot run hyperparameter sweep.")
+        logger.error(" WandB not available. Cannot run hyperparameter sweep.")
         return None, []
     
     results = []
@@ -484,14 +375,14 @@ def run_hyperparameter_sweep(
             if "error" not in result:
                 results.append(result)
                 successful_runs += 1
-                logger.info(f"✅ Run {successful_runs} completed successfully")
+                logger.info(f" Run {successful_runs} completed successfully")
             else:
-                logger.error(f"❌ Run failed: {result['error']}")
+                logger.error(f" Run failed: {result['error']}")
                 
             return result
             
         except Exception as e:
-            logger.error(f"❌ Unexpected error in training run: {e}")
+            logger.error(f" Unexpected error in training run: {e}")
             return {"error": str(e)}
     
     try:
@@ -500,21 +391,21 @@ def run_hyperparameter_sweep(
         
         # Initialize sweep
         sweep_id = wandb.sweep(sweep_config, project=project_name)
-        logger.info(f"🎯 Started hyperparameter sweep: {sweep_id}")
+        logger.info(f" Started hyperparameter sweep: {sweep_id}")
         
         # Run sweep with limited runs
         try:
             wandb.agent(sweep_id, train_with_logging, count=max_runs)
         except KeyboardInterrupt:
-            logger.info("⚠️  Sweep interrupted by user")
+            logger.info("  Sweep interrupted by user")
         except Exception as e:
-            logger.error(f"❌ Sweep execution failed: {e}")
+            logger.error(f" Sweep execution failed: {e}")
         
-        logger.info(f"🎯 Sweep completed: {successful_runs}/{max_runs} runs successful")
+        logger.info(f" Sweep completed: {successful_runs}/{max_runs} runs successful")
         return sweep_id, results
         
     except Exception as e:
-        logger.error(f"❌ Sweep initialization failed: {e}")
+        logger.error(f" Sweep initialization failed: {e}")
         return None, results
 
 
@@ -538,13 +429,13 @@ def analyze_results(
     try:
         # Load results from CSV or use provided results
         if csv_path and os.path.exists(csv_path):
-            logger.info(f"📊 Loading results from {csv_path}")
+            logger.info(f" Loading results from {csv_path}")
             df = pd.read_csv(csv_path)
         elif results:
-            logger.info(f"📊 Analyzing {len(results)} training results")
+            logger.info(f" Analyzing {len(results)} training results")
             df = pd.DataFrame(results)
         else:
-            logger.warning("⚠️  No results available for analysis")
+            logger.warning("  No results available for analysis")
             return None
         
         # Clean and prepare data
@@ -554,27 +445,27 @@ def analyze_results(
         if 'error' in df.columns:
             error_count = df['error'].notna().sum()
             if error_count > 0:
-                logger.info(f"⚠️  Filtered out {error_count} failed runs")
+                logger.info(f"  Filtered out {error_count} failed runs")
                 df = df[df['error'].isna()]
         
         if df.empty:
-            logger.warning("⚠️  No successful results to analyze")
+            logger.warning("  No successful results to analyze")
             return None
         
         # Sort by validation loss if available
         if 'val_loss' in df.columns:
             df = df.sort_values(by='val_loss').reset_index(drop=True)
-            logger.info("📈 Results sorted by validation loss")
+            logger.info(" Results sorted by validation loss")
             
             # Display top results
             top_n = min(5, len(df))
-            logger.info(f"🏆 Top {top_n} results:")
+            logger.info(f" Top {top_n} results:")
             for i in range(top_n):
                 row = df.iloc[i]
                 logger.info(f"  {i+1}. Val Loss: {row.get('val_loss', 'N/A'):.4f}")
         
         # Statistical summary
-        logger.info("📊 Statistical summary:")
+        logger.info(" Statistical summary:")
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         if len(numeric_cols) > 0:
             summary = df[numeric_cols].describe()
@@ -587,7 +478,7 @@ def analyze_results(
         return df
         
     except Exception as e:
-        logger.error(f"❌ Results analysis failed: {e}")
+        logger.error(f" Results analysis failed: {e}")
         return None
 
 
@@ -648,10 +539,10 @@ def create_analysis_plots(df: pd.DataFrame) -> None:
         plt.tight_layout()
         plt.show()
         
-        logger.info("📈 Analysis plots created successfully")
+        logger.info(" Analysis plots created successfully")
         
     except Exception as e:
-        logger.error(f"❌ Plot creation failed: {e}")
+        logger.error(f" Plot creation failed: {e}")
 
 
 def main(
@@ -691,7 +582,7 @@ def main(
     """
     # Setup logging
     logger = setup_logging(log_level)
-    logger.info("🚀 Starting Hyperparameter Tuning for AutoEncoder")
+    logger.info("Starting Hyperparameter Tuning for AutoEncoder")
     logger.info(f"Dataset: {data_path}")
     logger.info(f"Device: {device_override}")
     logger.info(f"Max Runs: {max_sweep_runs}")
@@ -700,47 +591,44 @@ def main(
         # Set random seeds
         set_random_seeds(random_seed)
         
-        # Initialize device
-        device, use_cuda = initialize_device(device_override)
-        
         # Check if we're only analyzing existing results
         if analyze_existing:
-            logger.info(f"📊 Analyzing existing results from {analyze_existing}")
+            logger.info(f" Analyzing existing results from {analyze_existing}")
             analyze_results([], analyze_existing, show_plots)
             return True
         
         # Check WandB availability
         if not WANDB_AVAILABLE:
-            logger.error("❌ WandB is required for hyperparameter tuning but not available")
+            logger.error(" WandB is required for hyperparameter tuning but not available")
             return False
         
         # Validate and load dataset
-        logger.info("📂 Loading and validating dataset...")
-        data = validate_dataset(data_path)
+        logger.info(" Loading and validating dataset...")
+        data = validate_dataset_file(data_path)
         if data is None:
             return False
         
         # Prepare data loaders
-        logger.info("🔄 Preparing data loaders...")
+        logger.info(" Preparing data loaders...")
         train_loader, val_loader, num_features = prepare_data_loaders(
             data, train_split, batch_size, num_workers=4, random_seed=random_seed
         )
         
         # Create sweep configuration
-        logger.info("⚙️  Creating sweep configuration...")
+        logger.info("  Creating sweep configuration...")
         sweep_config = create_sweep_config(method=sweep_method)
         
         # Run hyperparameter sweep
-        logger.info(f"🎯 Starting hyperparameter sweep with {max_sweep_runs} runs...")
+        logger.info(f" Starting hyperparameter sweep with {max_sweep_runs} runs...")
         sweep_id, results = run_hyperparameter_sweep(
             train_loader, val_loader, num_features, sweep_config,
             max_sweep_runs, project_name, max_epochs
         )
         
         if sweep_id:
-            logger.info(f"✅ Sweep completed: {sweep_id}")
+            logger.info(f" Sweep completed: {sweep_id}")
         else:
-            logger.error("❌ Sweep failed to initialize")
+            logger.error(" Sweep failed to initialize")
             return False
         
         # Save results to CSV if requested
@@ -748,22 +636,22 @@ def main(
             try:
                 results_df = pd.DataFrame(results)
                 results_df.to_csv(output_csv, index=False)
-                logger.info(f"💾 Results saved to {output_csv}")
+                logger.info(f" Results saved to {output_csv}")
             except Exception as e:
-                logger.error(f"❌ Failed to save results: {e}")
+                logger.error(f" Failed to save results: {e}")
         
         # Analyze results
         if results:
-            logger.info("📊 Analyzing sweep results...")
+            logger.info(" Analyzing sweep results...")
             analyze_results(results, show_plots=show_plots)
         else:
-            logger.warning("⚠️  No successful results to analyze")
+            logger.warning("  No successful results to analyze")
         
-        logger.info("🎉 Hyperparameter tuning completed successfully")
+        logger.info(" Hyperparameter tuning completed successfully")
         return True
         
     except Exception as e:
-        logger.error(f"❌ Hyperparameter tuning failed: {e}")
+        logger.error(f" Hyperparameter tuning failed: {e}")
         return False
 
 

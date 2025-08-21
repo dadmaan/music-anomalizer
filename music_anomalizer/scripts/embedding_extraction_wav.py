@@ -33,7 +33,10 @@ from tqdm import tqdm
 from music_anomalizer.preprocessing.extract_embed import (
     load_audio, get_features, prepare_input_dict, prepare_audio_as_tensor, get_audio_branch
 )
-from music_anomalizer.utils import PickleHandler
+from music_anomalizer.utils import (
+    PickleHandler, setup_logging, initialize_device, validate_directory_path,
+    validate_file_path, display_execution_summary
+)
 
 try:
     import laion_clap
@@ -53,55 +56,8 @@ BASE_DIR = Path(__file__).parent
 PROJECT_ROOT = BASE_DIR.parent.parent
 
 
-def setup_logging(log_level: str = 'INFO') -> logging.Logger:
-    """Configure logging with timestamps and proper formatting.
-    
-    Args:
-        log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
-    
-    Returns:
-        Configured logger instance
-    """
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    
-    logger = logging.getLogger('embedding_extraction')
-    return logger
 
 
-def initialize_device(device_override: Optional[str] = None) -> torch.device:
-    """Initialize compute device with validation and fallback.
-    
-    Args:
-        device_override: Override device selection ('auto', 'cpu', 'cuda')
-    
-    Returns:
-        Validated torch device
-    """
-    logger = logging.getLogger('embedding_extraction')
-    
-    if device_override == 'cpu':
-        device = torch.device('cpu')
-        logger.info(" Using CPU (forced)")
-    elif device_override == 'cuda':
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-            logger.info(f" Using CUDA: {torch.cuda.get_device_name()}")
-        else:
-            device = torch.device('cpu')
-            logger.warning(" CUDA requested but not available, falling back to CPU")
-    else:
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-            logger.info(f" Auto-selected CUDA: {torch.cuda.get_device_name()}")
-        else:
-            device = torch.device('cpu')
-            logger.info(" Auto-selected CPU (CUDA not available)")
-    
-    return device
 
 
 def validate_dataset_path(dataset_path: Path) -> Tuple[bool, str]:

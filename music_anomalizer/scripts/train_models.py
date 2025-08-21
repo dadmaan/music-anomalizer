@@ -38,104 +38,11 @@ import torch
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from music_anomalizer.utils import (
-    write_to_json, create_folder, 
-    move_and_rename_files, PickleHandler
+    write_to_json, create_folder, move_and_rename_files, PickleHandler,
+    setup_logging, initialize_device, validate_dataset_file, load_pickle
 )
 from music_anomalizer.config import load_experiment_config, get_checkpoint_registry
 from music_anomalizer.models.deepSVDD import DeepSVDDTrainer
-from music_anomalizer.utils import load_pickle
-
-
-def setup_logging(log_level: str = "INFO") -> logging.Logger:
-    """Setup logging configuration with timestamps and proper formatting.
-    
-    Args:
-        log_level (str): Logging level ('DEBUG', 'INFO', 'WARNING', 'ERROR')
-        
-    Returns:
-        logging.Logger: Configured logger instance
-    """
-    log_format = "[%(asctime)s] %(levelname)s - %(message)s"
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format=log_format,
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    return logging.getLogger(__name__)
-
-
-def initialize_device(device_override: str = "auto") -> torch.device:
-    """Initialize computation device with fallback support.
-    
-    Args:
-        device_override (str): Device preference ('auto', 'cpu', 'cuda')
-        
-    Returns:
-        torch.device: Selected device
-    """
-    logger = logging.getLogger(__name__)
-    
-    if device_override == "cpu":
-        device = torch.device('cpu')
-        logger.info("Using CPU (forced)")
-    elif device_override == "cuda":
-        if not torch.cuda.is_available():
-            logger.warning("CUDA requested but not available, falling back to CPU")
-            device = torch.device('cpu')
-        else:
-            device = torch.device('cuda')
-            logger.info(f"Using CUDA device: {torch.cuda.get_device_name()}")
-    else:  # auto
-        use_cuda = torch.cuda.is_available()
-        device = torch.device('cuda' if use_cuda else 'cpu')
-        if use_cuda:
-            logger.info(f"Auto-detected CUDA device: {torch.cuda.get_device_name()}")
-        else:
-            logger.info("Auto-detected CPU (CUDA not available)")
-    
-    return device
-
-
-def validate_dataset(dataset_path: str, dataset_name: str) -> Optional[Any]:
-    """Validate and load dataset with comprehensive checks.
-    
-    Args:
-        dataset_path (str): Path to dataset pickle file
-        dataset_name (str): Name of dataset for logging
-        
-    Returns:
-        Optional[Any]: Loaded dataset or None if validation fails
-    """
-    logger = logging.getLogger(__name__)
-    
-    # Check if file exists
-    if not os.path.exists(dataset_path):
-        logger.error(f"Dataset file not found: {dataset_path}")
-        return None
-    
-    # Check file size
-    file_size = os.path.getsize(dataset_path)
-    if file_size == 0:
-        logger.error(f"Dataset file is empty: {dataset_path}")
-        return None
-    
-    # Load and validate dataset
-    try:
-        data = load_pickle(dataset_path)
-        if data is None:
-            logger.error(f"Dataset loaded as None: {dataset_name}")
-            return None
-        
-        if len(data) == 0:
-            logger.error(f"Dataset is empty: {dataset_name}")
-            return None
-        
-        logger.info(f"✓ Dataset '{dataset_name}' loaded: {len(data)} samples ({file_size / (1024*1024):.1f} MB)")
-        return data
-        
-    except Exception as e:
-        logger.error(f"Error loading dataset '{dataset_name}' from {dataset_path}: {e}")
-        return None
 
 
 def train_model_combination(
@@ -425,7 +332,7 @@ def main(
             logger.info(f" Processing combination {combination_count}/{total_combinations}: {model_id}")
             
             # Validate and load dataset
-            data = validate_dataset(dataset_path, dataset_name)
+            data = validate_dataset_file(dataset_path, dataset_name)
             if data is None:
                 failed_models.append(model_id)
                 continue

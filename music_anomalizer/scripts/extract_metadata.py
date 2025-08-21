@@ -25,15 +25,12 @@ import numpy as np
 
 import nltk
 from nltk.corpus import words
+from music_anomalizer.utils import generate_md5_hash
 
 # Download required NLTK data
 nltk.download('wordnet', quiet=True)
 
 
-def generate_md5_hash(file_path, length=32):
-    """Generate a shorter hash using MD5."""
-    hash_object = hashlib.md5(file_path.encode())
-    return hash_object.hexdigest()[:length]
 
 
 def load_existing_metadata(file_path):
