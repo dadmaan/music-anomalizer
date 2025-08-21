@@ -33,7 +33,7 @@ from music_anomalizer.models.anomaly_detector import AnomalyDetector
 from music_anomalizer.utils import load_pickle
 
 # Default configuration
-DEFAULT_CONFIG = 'exp2_deeper'
+DEFAULT_CONFIG = 'exp1'
 BASE_DIR = Path(__file__).parent
 PROJECT_ROOT = BASE_DIR.parent.parent
 
@@ -84,21 +84,21 @@ def initialize_device(device_override: Optional[str] = None) -> torch.device:
     
     if device_override == 'cpu':
         device = torch.device('cpu')
-        logger.info("🔧 Using CPU (forced)")
+        logger.info(" Using CPU (forced)")
     elif device_override == 'cuda':
         if torch.cuda.is_available():
             device = torch.device('cuda')
-            logger.info(f"🚀 Using CUDA: {torch.cuda.get_device_name()}")
+            logger.info(f" Using CUDA: {torch.cuda.get_device_name()}")
         else:
             device = torch.device('cpu')
-            logger.warning("⚠️ CUDA requested but not available, falling back to CPU")
+            logger.warning(" CUDA requested but not available, falling back to CPU")
     else:
         if torch.cuda.is_available():
             device = torch.device('cuda')
-            logger.info(f"🚀 Auto-selected CUDA: {torch.cuda.get_device_name()}")
+            logger.info(f" Auto-selected CUDA: {torch.cuda.get_device_name()}")
         else:
             device = torch.device('cpu')
-            logger.info("🔧 Auto-selected CPU (CUDA not available)")
+            logger.info(" Auto-selected CPU (CUDA not available)")
     
     return device
 
@@ -126,8 +126,8 @@ def validate_dataset(dataset_path: Path, dataset_index_path: Path) -> Tuple[bool
         dataset_size = dataset_path.stat().st_size / (1024 * 1024)  # MB
         index_size = dataset_index_path.stat().st_size / (1024 * 1024)  # MB
         
-        logger.debug(f"📊 Dataset file size: {dataset_size:.1f} MB")
-        logger.debug(f"📊 Index file size: {index_size:.1f} MB")
+        logger.debug(f" Dataset file size: {dataset_size:.1f} MB")
+        logger.debug(f" Index file size: {index_size:.1f} MB")
         
         if dataset_size < 0.1:  # Less than 0.1 MB is suspicious
             return False, f"Dataset file seems too small: {dataset_size:.1f} MB"
@@ -154,7 +154,7 @@ def load_and_validate_data(dataset_path: Path, dataset_index_path: Path) -> Tupl
     logger = logging.getLogger('compute_anomaly_scores')
     
     try:
-        logger.info("📂 Loading dataset...")
+        logger.info(" Loading dataset...")
         data = load_pickle(str(dataset_path))
         data_index = load_pickle(str(dataset_index_path))
         
@@ -166,7 +166,7 @@ def load_and_validate_data(dataset_path: Path, dataset_index_path: Path) -> Tupl
             raise ValueError("Dataset index is empty")
             
         if len(data) != len(data_index):
-            logger.warning(f"⚠️ Data length ({len(data)}) != Index length ({len(data_index)})")
+            logger.warning(f" Data length ({len(data)}) != Index length ({len(data_index)})")
         
         validation_info = {
             'data_shape': data.shape,
@@ -175,15 +175,15 @@ def load_and_validate_data(dataset_path: Path, dataset_index_path: Path) -> Tupl
             'feature_dim': data.shape[-1] if len(data.shape) > 1 else 1
         }
         
-        logger.info("✅ Dataset loaded successfully")
-        logger.info(f"   📊 Shape: {validation_info['data_shape']}")
-        logger.info(f"   📝 Samples: {validation_info['num_samples']}")
-        logger.info(f"   🔢 Features: {validation_info['feature_dim']}")
+        logger.info(" Dataset loaded successfully")
+        logger.info(f"    Shape: {validation_info['data_shape']}")
+        logger.info(f"    Samples: {validation_info['num_samples']}")
+        logger.info(f"    Features: {validation_info['feature_dim']}")
         
         return data, data_index, validation_info
         
     except Exception as e:
-        logger.error(f"❌ Failed to load dataset: {e}")
+        logger.error(f" Failed to load dataset: {e}")
         raise ValueError(f"Dataset loading failed: {e}") from e
 
 
@@ -208,7 +208,7 @@ def initialize_anomaly_detector(model_config: Dict, svdd_config: Dict,
     logger = logging.getLogger('compute_anomaly_scores')
     
     try:
-        logger.info("🤖 Initializing anomaly detector...")
+        logger.info(" Initializing anomaly detector...")
         
         # Validate checkpoint files exist
         if not ae_checkpoint.exists():
@@ -222,14 +222,14 @@ def initialize_anomaly_detector(model_config: Dict, svdd_config: Dict,
             device=device
         )
         
-        logger.info("📥 Loading model checkpoints...")
+        logger.info(" Loading model checkpoints...")
         detector.load_models()
-        logger.info("✅ Models loaded successfully")
+        logger.info(" Models loaded successfully")
         
         return detector
         
     except Exception as e:
-        logger.error(f"❌ Failed to initialize anomaly detector: {e}")
+        logger.error(f" Failed to initialize anomaly detector: {e}")
         raise ValueError(f"Model initialization failed: {e}") from e
 
 def compute_anomaly_scores(model_type: str, config_name: str = DEFAULT_CONFIG,
@@ -254,10 +254,10 @@ def compute_anomaly_scores(model_type: str, config_name: str = DEFAULT_CONFIG,
         device = initialize_device()
     
     try:
-        logger.info(f"🎵 Computing anomaly scores for {model_type} model...")
+        logger.info(f" Computing anomaly scores for {model_type} model...")
         
         # Load configuration
-        logger.info(f"⚙️ Loading configuration: {config_name}")
+        logger.info(f" Loading configuration: {config_name}")
         config = load_experiment_config(config_name)
         
         # Get model configuration
@@ -285,7 +285,7 @@ def compute_anomaly_scores(model_type: str, config_name: str = DEFAULT_CONFIG,
         # Update model config with data dimensions
         if 'num_features' not in model_config or model_config['num_features'] is None:
             model_config['num_features'] = validation_info['feature_dim']
-            logger.info(f"📏 Set num_features to {model_config['num_features']}")
+            logger.info(f" Set num_features to {model_config['num_features']}")
         
         # Build checkpoint paths (simplified fallback approach)
         checkpoint_dir = PROJECT_ROOT / 'checkpoints' / 'loop_benchmark' / config_name.upper() / model_choice['model_key']
@@ -303,8 +303,8 @@ def compute_anomaly_scores(model_type: str, config_name: str = DEFAULT_CONFIG,
         ae_checkpoint = ae_checkpoints[0]
         svdd_checkpoint = svdd_checkpoints[0]
         
-        logger.info(f"📍 Using AE checkpoint: {ae_checkpoint.name}")
-        logger.info(f"📍 Using SVDD checkpoint: {svdd_checkpoint.name}")
+        logger.info(f" Using AE checkpoint: {ae_checkpoint.name}")
+        logger.info(f" Using SVDD checkpoint: {svdd_checkpoint.name}")
         
         # Initialize detector
         detector = initialize_anomaly_detector(model_config, svdd_config, ae_checkpoint, svdd_checkpoint, device)
@@ -313,7 +313,7 @@ def compute_anomaly_scores(model_type: str, config_name: str = DEFAULT_CONFIG,
         results = []
         failed_count = 0
         
-        logger.info(f"🔄 Processing {len(data)} files...")
+        logger.info(f" Processing {len(data)} files...")
         for idx in tqdm(range(len(data)), desc=f"Computing {model_type} scores"):
             try:
                 # Get anomaly score (distance from center) for current file
@@ -331,7 +331,7 @@ def compute_anomaly_scores(model_type: str, config_name: str = DEFAULT_CONFIG,
                 
             except Exception as e:
                 failed_count += 1
-                logger.debug(f"⚠️ Error processing file {idx}: {e}")
+                logger.debug(f" Error processing file {idx}: {e}")
                 
                 file_path = data_index[idx][1] if idx < len(data_index) else f"unknown_{idx}"
                 results.append({
@@ -348,17 +348,17 @@ def compute_anomaly_scores(model_type: str, config_name: str = DEFAULT_CONFIG,
         if output_path is None:
             output_path = BASE_DIR / f'anomaly_scores_{model_type}.pkl'
         
-        logger.info(f"💾 Saving results to {output_path}")
+        logger.info(f" Saving results to {output_path}")
         with open(output_path, 'wb') as f:
             pickle.dump(results, f)
         
         # Display summary
         success_count = len(results) - failed_count
-        logger.info(f"✅ Completed processing: {success_count}/{len(results)} successful")
+        logger.info(f" Completed processing: {success_count}/{len(results)} successful")
         if failed_count > 0:
-            logger.warning(f"⚠️ Failed files: {failed_count}")
+            logger.warning(f" Failed files: {failed_count}")
         
-        logger.info("🏆 Top 5 most typical loops (lowest anomaly scores):")
+        logger.info(" Top 5 most typical loops (lowest anomaly scores):")
         for i, result in enumerate(results[:5]):
             if result['anomaly_score'] != float('inf'):
                 logger.info(f"   {i+1}. {Path(result['file_path']).name} - Score: {result['anomaly_score']:.6f}")
@@ -366,7 +366,7 @@ def compute_anomaly_scores(model_type: str, config_name: str = DEFAULT_CONFIG,
         return results
         
     except Exception as e:
-        logger.error(f"❌ Anomaly score computation failed: {e}")
+        logger.error(f" Anomaly score computation failed: {e}")
         raise ValueError(f"Computation failed for {model_type}: {e}") from e
 
 def parse_arguments() -> argparse.Namespace:
@@ -443,12 +443,12 @@ def validate_configuration(args: argparse.Namespace) -> bool:
     logger = logging.getLogger('compute_anomaly_scores')
     
     try:
-        logger.info("⚙️ Validating configuration...")
+        logger.info(" Validating configuration...")
         
         # Validate config exists
         try:
             config = load_experiment_config(args.config)
-            logger.debug(f"✅ Configuration '{args.config}' loaded successfully")
+            logger.debug(f" Configuration '{args.config}' loaded successfully")
         except Exception as e:
             raise ValueError(f"Failed to load configuration '{args.config}': {e}")
         
@@ -466,11 +466,11 @@ def validate_configuration(args: argparse.Namespace) -> bool:
                 # Directory path
                 args.output.mkdir(parents=True, exist_ok=True)
         
-        logger.info("✅ Configuration validation successful")
+        logger.info(" Configuration validation successful")
         return True
         
     except Exception as e:
-        logger.error(f"❌ Configuration validation failed: {e}")
+        logger.error(f" Configuration validation failed: {e}")
         raise
 
 
@@ -484,7 +484,7 @@ def display_execution_summary(results: Dict[str, List[Dict]], failed_models: Lis
     logger = logging.getLogger('compute_anomaly_scores')
     
     logger.info("\\n" + "="*60)
-    logger.info("📊 EXECUTION SUMMARY")
+    logger.info(" EXECUTION SUMMARY")
     logger.info("="*60)
     
     total_processed = sum(len(result_list) for result_list in results.values())
@@ -493,21 +493,21 @@ def display_execution_summary(results: Dict[str, List[Dict]], failed_models: Lis
         for result_list in results.values()
     )
     
-    logger.info(f"🎵 Models processed: {len(results) + len(failed_models)}")
-    logger.info(f"✅ Successful models: {len(results)}")
+    logger.info(f" Models processed: {len(results) + len(failed_models)}")
+    logger.info(f" Successful models: {len(results)}")
     if failed_models:
-        logger.info(f"❌ Failed models: {len(failed_models)} ({', '.join(failed_models)})")
+        logger.info(f" Failed models: {len(failed_models)} ({', '.join(failed_models)})")
     
-    logger.info(f"📁 Total files processed: {total_processed}")
-    logger.info(f"✅ Successful computations: {total_successful}")
+    logger.info(f" Total files processed: {total_processed}")
+    logger.info(f" Successful computations: {total_successful}")
     
     if total_processed > 0:
         success_rate = (total_successful / total_processed) * 100
-        logger.info(f"📈 Success rate: {success_rate:.1f}%")
+        logger.info(f" Success rate: {success_rate:.1f}%")
     
     for model_type, result_list in results.items():
         model_successful = len([r for r in result_list if r['anomaly_score'] != float('inf')])
-        logger.info(f"   🎸 {model_type}: {model_successful}/{len(result_list)} files")
+        logger.info(f"    {model_type}: {model_successful}/{len(result_list)} files")
     
     logger.info("="*60)
 
@@ -522,16 +522,16 @@ def main() -> int:
     logger = setup_logging(args.log_level)
     
     try:
-        logger.info("🎵 Starting anomaly score computation...")
-        logger.info(f"📝 Configuration: {args.config}")
-        logger.info(f"🎸 Model type: {args.model_type}")
-        logger.info(f"💻 Device: {args.device}")
+        logger.info(" Starting anomaly score computation...")
+        logger.info(f" Configuration: {args.config}")
+        logger.info(f" Model type: {args.model_type}")
+        logger.info(f" Device: {args.device}")
         
         # Validate configuration
         validate_configuration(args)
         
         if args.dry_run:
-            logger.info("✅ Dry-run completed successfully - all validations passed")
+            logger.info(" Dry-run completed successfully - all validations passed")
             return 0
         
         # Initialize device
@@ -549,7 +549,7 @@ def main() -> int:
         
         for model_type in models_to_process:
             try:
-                logger.info(f"\\n🎸 Processing {model_type} model...")
+                logger.info(f"\\n Processing {model_type} model...")
                 
                 # Determine output path
                 if args.output:
@@ -569,11 +569,11 @@ def main() -> int:
                 )
                 
                 results[model_type] = model_results
-                logger.info(f"✅ {model_type} model completed successfully")
+                logger.info(f" {model_type} model completed successfully")
                 
             except Exception as e:
                 failed_models.append(model_type)
-                logger.error(f"❌ {model_type} model failed: {e}")
+                logger.error(f" {model_type} model failed: {e}")
                 if args.log_level == 'DEBUG':
                     logger.exception("Full traceback:")
         
@@ -582,17 +582,17 @@ def main() -> int:
         
         # Determine exit code
         if failed_models:
-            logger.warning(f"⚠️ Some models failed: {', '.join(failed_models)}")
+            logger.warning(f" Some models failed: {', '.join(failed_models)}")
             return 1 if len(results) == 0 else 0  # Partial success
         else:
             logger.info("🎉 All models processed successfully!")
             return 0
     
     except KeyboardInterrupt:
-        logger.warning("\\n⚠️ Process interrupted by user")
+        logger.warning("\\n Process interrupted by user")
         return 1
     except Exception as e:
-        logger.error(f"❌ Execution failed: {e}")
+        logger.error(f" Execution failed: {e}")
         if args.log_level == 'DEBUG':
             logger.exception("Full traceback:")
         return 1
