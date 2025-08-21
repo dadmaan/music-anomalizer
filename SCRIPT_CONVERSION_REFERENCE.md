@@ -32,40 +32,86 @@ python music_anomalizer/scripts/preprocess_wav_loops.py
 **Source:** `4_embedding_extraction_wav.ipynb`
 
 **Purpose:**
-- Extracts embeddings from audio files using the CLAP model
-- Processes WAV files using concurrent processing with configurable parameters
-- Saves embeddings and index data as pickle files with flexible output naming
+- Extracts embeddings from audio files using the CLAP (Contrastive Language-Audio Pre-training) model
+- Processes multiple audio formats (WAV, MP3, FLAC, M4A) using concurrent processing with comprehensive error handling
+- Saves embeddings and index data as pickle files with flexible output naming and organization
+- Provides robust model initialization, dataset validation, and progress tracking
 
 **Key Functions:**
-- `extract_embedding()`: Extracts embedding from a single audio file
-- `worker()`: Worker function for concurrent processing
-- `run_process()`: Main processing function that handles concurrent execution
-- `initialize_device()`: Device initialization with preference selection
-- `initialize_clap_model()`: CLAP model loading with validation
-- `process_dataset()`: Complete dataset processing pipeline
+- `setup_logging()`: Configurable logging with timestamps and proper formatting
+- `initialize_device()`: Robust device initialization with detailed feedback and fallback
+- `validate_dataset_path()`: Dataset directory validation with audio file detection
+- `validate_checkpoint_path()`: CLAP model checkpoint validation with size checks
+- `initialize_clap_model()`: CLAP model loading with comprehensive validation and error handling
+- `get_audio_files()`: Multi-format audio file discovery with consistent ordering
+- `extract_embedding()`: Enhanced embedding extraction with validation and memory management
+- `worker()`: Optimized worker function for concurrent processing with timeout handling
+- `create_output_filename()`: Standardized output filename generation
+- `run_process()`: Main processing function with comprehensive error tracking and progress monitoring
+- `process_dataset()`: Complete dataset processing pipeline with validation and statistics
+- `parse_arguments()`: Comprehensive CLI argument parsing with detailed help
+- `validate_configuration()`: Pre-execution configuration validation
+- `display_execution_summary()`: Detailed execution summary with statistics
+- `main()`: Main orchestration function with comprehensive parameter control
 
-**Enhanced Features (2025-08):**
-- **Command-line Interface**: Configurable dataset paths and processing options
-- **Device Selection**: Explicit device control with fallback logic
-- **Robust Error Handling**: Model loading validation and graceful failure handling
-- **Flexible I/O**: Configurable input/output directories
-- **Better Logging**: Structured logging with timestamps
-- **Path Validation**: Checks for dataset and checkpoint existence
+**Enhanced Features (2025-08-21):**
+- **Command-line Interface**: Comprehensive CLI with 10+ configurable parameters and detailed usage examples
+- **Robust Error Handling**: Individual file processing failures don't abort entire extraction
+- **Advanced Logging**: Structured logging with timestamps, progress indicators, and emoji-based status messages
+- **Multi-format Support**: Processes WAV, MP3, FLAC, and M4A audio files automatically
+- **Dataset Validation**: Pre-processing validation of dataset directories with audio file detection
+- **Checkpoint Validation**: CLAP model checkpoint validation with file size and integrity checks
+- **Flexible Processing**: Supports both feature extraction preprocessing and direct audio tensor processing
+- **Concurrent Processing**: Optimized ThreadPoolExecutor with configurable worker count and timeout handling
+- **Progress Tracking**: Real-time progress bars with detailed execution summaries and success rates
+- **Memory Management**: Proper cleanup and CUDA memory management throughout processing
+- **Dry-run Mode**: Configuration validation without expensive model loading and processing
+- **Modular Architecture**: Well-separated functions for maintainability and testing
+- **Output Organization**: Standardized output naming with custom naming options
+- **Statistical Reporting**: Comprehensive processing statistics and success rate tracking
 
 **Usage:**
 ```bash
 # Basic usage with defaults
 python music_anomalizer/scripts/embedding_extraction_wav.py
 
-# Process specific dataset
+# Process specific dataset with custom output
 python music_anomalizer/scripts/embedding_extraction_wav.py --dataset data/dataset/guitar --output data/embeddings
 
-# Control processing parameters
+# GPU processing with more workers
 python music_anomalizer/scripts/embedding_extraction_wav.py --device cuda --workers 16 --model HTSAT-base
 
-# Use custom checkpoint
-python music_anomalizer/scripts/embedding_extraction_wav.py --checkpoint path/to/clap_model.pt
+# Use custom checkpoint and skip feature extraction
+python music_anomalizer/scripts/embedding_extraction_wav.py --checkpoint path/to/clap_model.pt --no-features
+
+# Validate setup without processing
+python music_anomalizer/scripts/embedding_extraction_wav.py --dry-run --log-level DEBUG
+
+# Custom output naming with verbose logging
+python music_anomalizer/scripts/embedding_extraction_wav.py --output-name custom_embeddings --log-level INFO
+
+# Process with specific device and custom workers
+python music_anomalizer/scripts/embedding_extraction_wav.py --device cpu --workers 4 --model HTSAT-base
 ```
+
+**Implementation Benefits:**
+- **Maintainability**: Clear separation of concerns with focused, testable functions
+- **Reliability**: Continues processing despite individual file failures with comprehensive error recovery
+- **Flexibility**: Highly configurable for different datasets, models, and processing scenarios
+- **Observability**: Comprehensive logging and progress tracking throughout execution
+- **User Experience**: Clear feedback, helpful error messages, and flexible usage options
+- **Integration**: Proper exit codes and validation for automation and CI/CD pipelines
+- **Performance**: Efficient concurrent processing with memory management and timeout handling
+
+**Technical Improvements:**
+- Added multi-format audio file support beyond just WAV files
+- Enhanced type hints and comprehensive documentation for all functions
+- Improved error handling patterns with contextual error messages and recovery
+- Added comprehensive parameter validation and configuration checking
+- Implemented proper device management with fallback mechanisms and detailed feedback
+- Added statistical summaries and execution reporting with success rate tracking
+- Conditional import handling for laion_clap with graceful degradation
+- Enhanced concurrent processing with timeout handling and proper resource cleanup
 
 ### 3. hp_tuning_loop_detection.py
 **Source:** `6_hp_tuning_loop_detecton.ipynb`
@@ -714,6 +760,76 @@ checkpoints = registry.get_experiment_checkpoints("EXP2_DEEPER")
 - Eliminated hardcoded paths and made all parameters configurable
 - Added comprehensive parameter validation and error checking
 - Proper WandB run management with cleanup and error recovery
+
+### 9. compute_anomaly_scores.py
+**Source:** Original standalone script
+
+**Purpose:**
+- Computes anomaly scores for all files in training datasets using trained DeepSVDD models
+- Processes both bass and guitar models with distance-based anomaly scoring
+- Loads pre-trained AutoEncoder and DeepSVDD checkpoints for evaluation
+- Ranks and saves results based on anomaly scores for further analysis
+
+**Key Functions:**
+- `setup_logging()`: Configurable logging with timestamps and proper formatting
+- `initialize_device()`: Robust device initialization with detailed feedback and fallback
+- `validate_dataset()`: Dataset file validation with size and integrity checks
+- `load_and_validate_data()`: Safe data loading with comprehensive validation
+- `initialize_anomaly_detector()`: Model initialization with checkpoint validation
+- `compute_anomaly_scores()`: Core anomaly scoring with error handling and progress tracking
+- `validate_configuration()`: Pre-execution configuration and argument validation
+- `display_execution_summary()`: Comprehensive execution summary with statistics
+- `main()`: Main orchestration function with comprehensive parameter control
+
+**Enhanced Features (2025-08-21):**
+- **Command-line Interface**: Comprehensive CLI with configurable model types, device selection, and output paths
+- **Robust Error Handling**: Individual file processing failures don't abort entire computation
+- **Advanced Logging**: Structured logging with timestamps, progress indicators, and emoji-based status messages
+- **Configuration Integration**: Uses YAML configuration system with validation and device management
+- **Dataset Validation**: Pre-processing validation of dataset files with size and integrity checks
+- **Flexible Processing**: Supports processing individual models or both bass/guitar models
+- **Progress Tracking**: Real-time progress bars and detailed execution summaries
+- **Memory Management**: Proper cleanup and resource management throughout processing
+- **Dry-run Mode**: Configuration validation without expensive model loading and processing
+- **Modular Architecture**: Well-separated functions for maintainability and testing
+- **Result Organization**: Sorted results with comprehensive metadata and error tracking
+
+**Usage:**
+```bash
+# Basic processing with defaults (both models)
+python music_anomalizer/scripts/compute_anomaly_scores.py
+
+# Process specific model type
+python music_anomalizer/scripts/compute_anomaly_scores.py --model-type bass --device cuda
+
+# Use different configuration
+python music_anomalizer/scripts/compute_anomaly_scores.py --config exp1 --output results/
+
+# Validate setup without processing
+python music_anomalizer/scripts/compute_anomaly_scores.py --dry-run --log-level DEBUG
+
+# Custom output location with verbose logging
+python music_anomalizer/scripts/compute_anomaly_scores.py --output /path/to/scores.pkl --log-level INFO
+
+# Process only guitar model with CPU
+python music_anomalizer/scripts/compute_anomaly_scores.py --model-type guitar --device cpu
+```
+
+**Implementation Benefits:**
+- **Maintainability**: Clear separation of concerns with focused, testable functions
+- **Reliability**: Continues processing despite individual file or model failures
+- **Flexibility**: Highly configurable for different experimental scenarios and model types
+- **Observability**: Comprehensive logging and progress tracking throughout execution
+- **User Experience**: Clear feedback, helpful error messages, and flexible usage options
+- **Integration**: Proper exit codes and validation for automation and CI/CD pipelines
+
+**Technical Improvements:**
+- Replaced hardcoded paths with configurable dataset and checkpoint discovery
+- Enhanced type hints and comprehensive documentation for all functions
+- Improved error handling patterns with contextual error messages and recovery
+- Added comprehensive parameter validation and configuration checking
+- Implemented proper device management with fallback mechanisms
+- Added statistical summaries and execution reporting
 
 ## Notes:
 - All scripts maintain the same functionality as the original notebooks
