@@ -27,25 +27,38 @@ def cleanup():
     gc.collect()  # Force garbage collection
     
 def create_folder(fd):
-    try:
-        if not os.path.exists(fd):
-            os.makedirs(fd)
+    """Legacy wrapper for validate_directory_path - use validate_directory_path directly."""
+    is_valid, error_msg = validate_directory_path(fd, create_if_missing=True)
+    if not is_valid:
+        print(f"An unexpected error occurred: {error_msg}")
+    else:
+        if not Path(fd).exists():
             print(f"Created new directory at {fd}.")
         else:
-            print("Path already exists.")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}") 
+            print("Path already exists.") 
 
-def load_json(file_path):
+def load_json(file_path, as_dataframe=False):
     """
     Loads a JSON file from the specified path.
 
     :param file_path: Path to the JSON file.
-    :return: Parsed JSON data as a Python dictionary.
+    :param as_dataframe: If True, returns flattened data as pandas DataFrame.
+    :return: Parsed JSON data as a Python dictionary or DataFrame.
     """
     try:
         with open(file_path, 'r') as file:
             data = json.load(file)
+        
+        if as_dataframe:
+            # Flatten the data structure for DataFrame
+            flat_data = []
+            for item in data:
+                for key, value in item.items():
+                    value['hash'] = key  # Optionally add the hash as a column
+                    flat_data.append(value)
+            
+            return pd.DataFrame(flat_data)
+        
         return data
     except FileNotFoundError:
         print(f"Error: File not found at {file_path}")
@@ -62,28 +75,6 @@ def write_to_json(data, json_file_path):
     except Exception as e:
         print(f"Failed to update JSON file: {e}")
 
-def load_json_to_dataframe(file_path):
-    """
-    Loads JSON data from the specified file path into a pandas DataFrame.
-    
-    :param file_path: Path to the JSON file.
-    :return: A pandas DataFrame containing the loaded data.
-    """
-    # Load the JSON data from the file
-    with open(file_path, 'r') as file:
-        data = json.load(file)
-    
-    # Flatten the data structure
-    flat_data = []
-    for item in data:
-        for key, value in item.items():
-            value['hash'] = key  # Optionally add the hash as a column
-            flat_data.append(value)
-    
-    # Create a DataFrame from the flattened data
-    df = pd.DataFrame(flat_data)
-    
-    return df
 
 
 def load_pickle(file_path):
@@ -141,14 +132,6 @@ def move_and_rename_files(file_paths, destination_dir, new_names=False):
         print(f"An error occurred: {e}")
 
 
-def seed_everything(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
 
 class StatisticsContainer(object):
     def __init__(self, statistics_path):
@@ -569,80 +552,59 @@ def set_random_seeds(seed: int = 0) -> int:
     logger.info(f"Random seed set to {seed} for reproducibility")
     return seed
 
-def validate_dataset(dataset_path: Path, dataset_index_path: Path) -> Tuple[bool, str]:
-    """Validate dataset files exist and contain valid data.
+def validate_dataset(dataset_path: str, dataset_index_path: str = None, load_data: bool = False) -> Tuple[bool, str, Any]:
+    """Validate dataset files exist and optionally load data.
     
     Args:
         dataset_path: Path to dataset pickle file
-        dataset_index_path: Path to dataset index pickle file
+        dataset_index_path: Optional path to dataset index pickle file
+        load_data: If True, loads and validates the dataset content
     
     Returns:
-        Tuple of (is_valid, error_message)
-    """
-    logger = logging.getLogger('compute_anomaly_scores')
-    
-    if not dataset_path.exists():
-        return False, f"Dataset file not found: {dataset_path}"
-    
-    if not dataset_index_path.exists():
-        return False, f"Dataset index file not found: {dataset_index_path}"
-    
-    try:
-        # Check file sizes
-        dataset_size = dataset_path.stat().st_size / (1024 * 1024)  # MB
-        index_size = dataset_index_path.stat().st_size / (1024 * 1024)  # MB
-        
-        logger.debug(f" Dataset file size: {dataset_size:.1f} MB")
-        logger.debug(f" Index file size: {index_size:.1f} MB")
-        
-        if dataset_size < 0.1:  # Less than 0.1 MB is suspicious
-            return False, f"Dataset file seems too small: {dataset_size:.1f} MB"
-            
-        return True, ""
-        
-    except Exception as e:
-        return False, f"Error validating dataset files: {e}"
-        
-
-def validate_dataset_file(dataset_path: str, dataset_name: str = None) -> Optional[Any]:
-    """Validate and load dataset with comprehensive checks.
-    
-    Args:
-        dataset_path (str): Path to dataset pickle file
-        dataset_name (str): Name of dataset for logging
-        
-    Returns:
-        Optional[Any]: Loaded dataset or None if validation fails
+        Tuple of (is_valid, error_message, loaded_data)
     """
     logger = logging.getLogger('music_anomalizer')
     
-    if not os.path.exists(dataset_path):
-        logger.error(f"Dataset file not found: {dataset_path}")
-        return None
+    # Convert to Path objects for consistency
+    dataset_path_obj = Path(dataset_path) if isinstance(dataset_path, str) else dataset_path
     
-    file_size = os.path.getsize(dataset_path)
-    if file_size == 0:
-        logger.error(f"Dataset file is empty: {dataset_path}")
-        return None
+    if not dataset_path_obj.exists():
+        return False, f"Dataset file not found: {dataset_path}", None
+    
+    if dataset_index_path:
+        index_path_obj = Path(dataset_index_path) if isinstance(dataset_index_path, str) else dataset_index_path
+        if not index_path_obj.exists():
+            return False, f"Dataset index file not found: {dataset_index_path}", None
     
     try:
-        data = load_pickle(dataset_path)
-        if data is None:
-            logger.error(f"Dataset loaded as None: {dataset_name or dataset_path}")
-            return None
+        # Check file sizes
+        dataset_size = dataset_path_obj.stat().st_size / (1024 * 1024)  # MB
+        logger.debug(f"Dataset file size: {dataset_size:.1f} MB")
         
-        if hasattr(data, '__len__') and len(data) == 0:
-            logger.error(f"Dataset is empty: {dataset_name or dataset_path}")
-            return None
+        if dataset_size < 0.1:  # Less than 0.1 MB is suspicious
+            return False, f"Dataset file seems too small: {dataset_size:.1f} MB", None
         
-        if dataset_name:
-            logger.info(f"Dataset '{dataset_name}' loaded: {len(data) if hasattr(data, '__len__') else 'unknown'} samples ({file_size / (1024*1024):.1f} MB)")
-        
-        return data
+        if dataset_size == 0:
+            return False, f"Dataset file is empty: {dataset_path}", None
+            
+        # Optionally load and validate data
+        if load_data:
+            data = load_pickle(str(dataset_path_obj))
+            if data is None:
+                return False, f"Dataset loaded as None: {dataset_path}", None
+            
+            if hasattr(data, '__len__') and len(data) == 0:
+                return False, f"Dataset is empty: {dataset_path}", None
+                
+            logger.info(f"Dataset loaded: {len(data) if hasattr(data, '__len__') else 'unknown'} samples ({dataset_size:.1f} MB)")
+            return True, "", data
+            
+        return True, "", None
         
     except Exception as e:
-        logger.error(f"Error loading dataset from {dataset_path}: {e}")
-        return None
+        return False, f"Error validating dataset files: {e}", None
+        
+
 
 
 def generate_md5_hash(text: str, length: int = 32) -> str:
@@ -844,15 +806,3 @@ def safe_file_operation(operation_func, *args, **kwargs):
         logger.error(f"File operation failed: {e}")
         return None
 
-def get_device_with_cuda_flag(device_override: str = "auto") -> Tuple[torch.device, bool]:
-    """Get device with CUDA flag for backward compatibility.
-    
-    Args:
-        device_override (str): Device preference
-        
-    Returns:
-        Tuple[torch.device, bool]: (device, use_cuda)
-    """
-    device = initialize_device(device_override)
-    use_cuda = device.type == 'cuda'
-    return device, use_cuda
