@@ -177,3 +177,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Aider AI coding assistant files
+.aider*
+aider.model.settings.yml
+AIDER_SETUP.md
+
+# Claude Code files
+CLAUDE.md
