@@ -35,7 +35,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from music_anomalizer.data.data_loader import DataHandler
 from music_anomalizer.utils import (
     load_pickle, cleanup, plot_score_distributions, box_plot_anomaly_scores,
-    setup_logging, set_random_seeds, initialize_device, validate_dataset_file
+    setup_logging, set_random_seeds, initialize_device, validate_dataset
 )
 from music_anomalizer.config import load_experiment_config, get_checkpoint_registry
 from music_anomalizer.evaluation.statistics import (
@@ -122,9 +122,9 @@ def evaluate_baseline_models(
         logger.info(f" Processing dataset {dataset_idx}/{total_datasets}: {dataset_name}")
         
         # Validate and load dataset
-        data = validate_dataset_file(dataset_path, dataset_name)
-        if data is None:
-            logger.error(f" Skipping dataset {dataset_name} due to validation failure")
+        is_valid, error_msg, data = validate_dataset(dataset_path, load_data=True)
+        if not is_valid:
+            logger.error(f" Skipping dataset {dataset_name} due to validation failure: {error_msg}")
             continue
         
         try:
@@ -260,8 +260,9 @@ def evaluate_deep_svdd_models(
                     continue
                 
                 # Validate and load dataset
-                data = validate_dataset_file(dataset_path, dataset_name)
-                if data is None:
+                is_valid, error_msg, data = validate_dataset(dataset_path, load_data=True)
+                if not is_valid:
+                    logger.error(f"Dataset validation failed for {dataset_name}: {error_msg}")
                     continue
                 
                 # Setup data handler

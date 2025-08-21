@@ -51,7 +51,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from music_anomalizer.models.networks import AutoEncoder
 from music_anomalizer.data.data_loader import DatasetSampler
 from music_anomalizer.utils import (
-    setup_logging, set_random_seeds, initialize_device, validate_dataset_file
+    setup_logging, set_random_seeds, initialize_device, validate_dataset
 )
 
 # Conditional wandb import with error handling
@@ -604,7 +604,10 @@ def main(
         
         # Validate and load dataset
         logger.info(" Loading and validating dataset...")
-        data = validate_dataset_file(data_path)
+        is_valid, error_msg, data = validate_dataset(data_path, load_data=True)
+        if not is_valid:
+            logger.error(f"Dataset validation failed: {error_msg}")
+            return None
         if data is None:
             return False
         

@@ -9,7 +9,7 @@ import wandb
 
 from music_anomalizer.models.networks import create_network, SVDD
 from music_anomalizer.data.data_loader import DataHandler
-from music_anomalizer.utils import get_z_vector, write_to_json, load_pickle
+from music_anomalizer.utils import get_z_vector, write_to_json, load_pickle, set_random_seeds
 
 # set deterministic behavior for pl
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"  # or ":16:8"
@@ -17,7 +17,7 @@ os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"  # or ":16:8"
 torch.set_float32_matmul_precision('medium') # set it to 'high' for higher precision
     
 # init seed
-pl.seed_everything(1234)
+set_random_seeds(1234)
 
 
 class DeepSVDDTrainer:

@@ -39,7 +39,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from music_anomalizer.utils import (
     write_to_json, create_folder, move_and_rename_files, PickleHandler,
-    setup_logging, initialize_device, validate_dataset_file, load_pickle
+    setup_logging, initialize_device, validate_dataset, load_pickle
 )
 from music_anomalizer.config import load_experiment_config, get_checkpoint_registry
 from music_anomalizer.models.deepSVDD import DeepSVDDTrainer
@@ -332,7 +332,10 @@ def main(
             logger.info(f" Processing combination {combination_count}/{total_combinations}: {model_id}")
             
             # Validate and load dataset
-            data = validate_dataset_file(dataset_path, dataset_name)
+            is_valid, error_msg, data = validate_dataset(dataset_path, load_data=True)
+            if not is_valid:
+                logger.error(f"Dataset validation failed for {dataset_name}: {error_msg}")
+                continue
             if data is None:
                 failed_models.append(model_id)
                 continue
