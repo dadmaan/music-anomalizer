@@ -1,4 +1,448 @@
-# music-anomalizer
-Code implementation and supplementary materials for the paper "Learning Normal Patterns in Musical Samples: Unsupervised Anomaly Detection for Variable-Length Audio Inputs". 
+# Music Anomalizer 🎵
 
-The repository is under construction; content will be available soon.
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch Lightning](https://img.shields.io/badge/PyTorch%20Lightning-2.0+-orange.svg)](https://lightning.ai/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+Code implementation and supplementary materials for the paper **"Learning Normal Patterns in Musical Samples: Unsupervised Anomaly Detection for Variable-Length Audio Inputs"**.
+
+This project implements a **Deep Support Vector Data Description (Deep SVDD)** framework for detecting anomalies in musical audio loops, enabling identification of musical patterns that deviate from normal training data.
+
+## 🚀 Key Features
+
+- **🎯 Unsupervised Anomaly Detection**: Deep SVDD-based models for musical audio loop analysis
+- **🧠 Multiple Neural Architectures**: AutoEncoders with residual connections, compact architectures, and baseline models
+- **🎵 Audio Processing Pipeline**: Complete WAV preprocessing with CLAP embeddings and feature extraction
+- **📊 Interactive Web Interface**: Streamlit-based application for real-time audio analysis
+- **⚡ High-Performance Training**: PyTorch Lightning integration with WandB logging
+- **🔧 Flexible Configuration**: YAML-based experiment configuration system
+
+## 📋 Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Model Architecture](#model-architecture)
+- [Usage](#usage)
+- [Dataset Requirements](#dataset-requirements)
+- [Training](#training)
+- [Web Interface](#web-interface)
+- [Configuration](#configuration)
+- [Project Structure](#project-structure)
+- [Contributing](#contributing)
+- [Citation](#citation)
+
+## 🛠️ Installation
+
+### Prerequisites
+- Python 3.8 or higher
+- CUDA-compatible GPU (recommended for training)
+- FFmpeg (for audio processing)
+
+### Install from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/music-anomalizer.git
+cd music-anomalizer
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install the package and dependencies
+pip install -e .
+
+# Install development dependencies (optional)
+pip install -e ".[dev]"
+```
+
+### Docker Installation
+
+```bash
+# Build the Docker image
+docker-compose build
+
+# Run the application
+docker-compose up
+```
+
+## 🚀 Quick Start
+
+### 1. Preprocess Audio Data
+
+```bash
+# Process WAV files with metadata
+python music_anomalizer/scripts/preprocess_wav_loops.py \
+    --wav_dir data/audio_files \
+    --metadata_path data/metadata.json \
+    --output_path processed_data.pkl \
+    --sample_rate 32000 \
+    --target_length 10
+```
+
+### 2. Train a Model
+
+```bash
+# Train using the simple interface
+python train.py \
+    --dataset processed_data.pkl \
+    --network AE \
+    --model-name my_anomaly_detector \
+    --epochs 500 \
+    --batch-size 32
+```
+
+### 3. Compute Anomaly Scores
+
+```bash
+# Analyze new audio files
+python music_anomalizer/scripts/compute_anomaly_scores.py \
+    --model_path models/my_anomaly_detector \
+    --test_data test_data.pkl \
+    --output_path results.json
+```
+
+### 4. Launch Web Interface
+
+```bash
+# Start the Streamlit app
+streamlit run app/pages/Home.py
+```
+
+## 🏗️ Model Architecture
+
+The Music Anomalizer implements several neural network architectures within the Deep SVDD framework:
+
+### Core Models
+
+#### **AutoEncoder (AE)**
+- **Purpose**: Basic reconstruction-based anomaly detection
+- **Architecture**: Encoder-decoder with configurable hidden dimensions
+- **Usage**: Good baseline for simple audio patterns
+
+#### **AutoEncoder with Residual Connections (AEwRES)**
+- **Purpose**: Enhanced feature learning with residual connections
+- **Architecture**: Skip connections preserve information flow
+- **Usage**: Better performance on complex musical patterns
+
+#### **Compact AutoEncoder (CompactAE)**
+- **Purpose**: Lightweight model for resource-constrained environments
+- **Architecture**: Reduced parameters while maintaining effectiveness
+- **Usage**: Fast inference and mobile deployment
+
+#### **Deep SVDD Network**
+- **Purpose**: One-class classification for anomaly detection
+- **Architecture**: Maps audio features to hypersphere representation
+- **Usage**: Core anomaly scoring mechanism
+
+### Audio Processing Pipeline
+
+```
+WAV Files → Feature Extraction → CLAP Embeddings → Deep SVDD → Anomaly Scores
+```
+
+1. **Audio Preprocessing**: Normalize, resample, and segment audio
+2. **Feature Extraction**: CLAP (Contrastive Language-Audio Pre-training) embeddings
+3. **Deep SVDD Training**: Learn normal pattern representations
+4. **Anomaly Detection**: Compute distances from learned center
+
+## 📖 Usage
+
+### Training Custom Models
+
+```python
+from music_anomalizer.models.deepSVDD import DeepSVDDTrainer
+from music_anomalizer.config import load_experiment_config
+
+# Load configuration
+config = load_experiment_config("configs/exp1.yaml")
+
+# Initialize trainer
+trainer = DeepSVDDTrainer(
+    AE_config=config['AE_config'],
+    SVDD_config=config['SVDD_config'],
+    dataset={"train": "data/train.pkl"},
+    device="cuda"
+)
+
+# Train the model
+trainer.pretraining("my_model", "train", train_data, val_data, 
+                   max_epochs=500, patience=10)
+trainer.train_deepSVDD("my_model", "train", train_data, val_data, 
+                      max_epochs=1000, patience=20)
+```
+
+### Computing Anomaly Scores
+
+```python
+from music_anomalizer.models.anomaly_detector import AnomalyDetector
+
+# Load trained model
+detector = AnomalyDetector()
+detector.load_model("path/to/model.ckpt")
+
+# Compute scores for new data
+scores = detector.compute_anomaly_scores(test_dataset)
+anomalies = detector.predict_anomalies(test_dataset, threshold=0.8)
+```
+
+### Batch Processing
+
+```python
+# Process multiple audio files
+results = {}
+for audio_file in audio_files:
+    features = extract_features(audio_file)
+    score = detector.compute_anomaly_scores([features])
+    results[audio_file] = score[0]
+```
+
+## 🗃️ Dataset Requirements
+
+### Input Data Format
+
+The system expects preprocessed data in pickle format with the following structure:
+
+```python
+{
+    'embeddings': np.ndarray,  # Shape: (n_samples, feature_dim)
+    'labels': List[str],       # Optional: ground truth labels
+    'metadata': Dict           # Additional sample information
+}
+```
+
+### Audio Requirements
+
+- **Format**: WAV files (16-bit or 24-bit)
+- **Sample Rate**: 32 kHz (configurable)
+- **Duration**: Variable length (automatically processed to target length)
+- **Channels**: Mono (stereo files converted automatically)
+
+### Metadata Format
+
+```json
+{
+    "sample_id_1": {
+        "file_path": "audio/drum_loop_1.wav",
+        "bpm": 120,
+        "key": "C",
+        "genre": ["electronic", "dance"],
+        "tags": ["drum", "loop", "4/4"]
+    },
+    "sample_id_2": {
+        "file_path": "audio/bass_line_2.wav",
+        "bpm": 128,
+        "key": "Am",
+        "genre": ["house"],
+        "tags": ["bass", "synth", "loop"]
+    }
+}
+```
+
+## 🎯 Training
+
+### Single Model Training
+
+Use the simplified `train.py` script for individual model training:
+
+```bash
+# Basic training
+python train.py --dataset data.pkl --network AE
+
+# Advanced configuration
+python train.py \
+    --dataset data.pkl \
+    --network AEwRES \
+    --model-name advanced_detector \
+    --epochs 1000 \
+    --batch-size 64 \
+    --learning-rate 1e-4 \
+    --wandb-project "MusicAnomalyDetection"
+```
+
+### Experiment Management
+
+For complex experiments, use the configuration system:
+
+```bash
+# Run predefined experiments
+python music_anomalizer/scripts/train_models.py --config configs/exp1.yaml
+python music_anomalizer/scripts/train_models.py --config configs/exp2_deeper.yaml
+```
+
+### Available Network Types
+
+| Network | Description | Use Case |
+|---------|-------------|----------|
+| `AE` | Standard AutoEncoder | Baseline experiments |
+| `AEwRES` | AutoEncoder with Residual | Complex patterns |
+| `CompactAE` | Lightweight AutoEncoder | Fast inference |
+| `DeepAE` | Deep AutoEncoder | High-capacity learning |
+| `Baseline` | Simple baseline model | Comparison studies |
+
+### Hyperparameter Tuning
+
+```bash
+# Run hyperparameter optimization
+python music_anomalizer/scripts/hp_tuning_loop_detection.py \
+    --dataset data.pkl \
+    --trials 50 \
+    --config configs/hp_config.yaml
+```
+
+## 🌐 Web Interface
+
+The project includes a Streamlit-based web application for interactive analysis:
+
+### Features
+- **🎵 Audio Upload**: Drag-and-drop interface for audio files
+- **📊 Real-time Analysis**: Instant anomaly score computation
+- **📈 Visualization**: Interactive plots and spectrograms
+- **🔍 Model Comparison**: Compare different trained models
+
+### Launching the App
+
+```bash
+streamlit run app/pages/Home.py
+```
+
+Navigate to `http://localhost:8501` to access the interface.
+
+### Available Pages
+- **Home**: Overview and quick analysis
+- **Overview**: Model architecture and methodology
+- **Upload & Analyze**: Detailed audio file analysis
+- **Visualization**: Advanced plotting and comparison tools
+
+## ⚙️ Configuration
+
+The system uses YAML configuration files for experiment management:
+
+### Base Configuration (`configs/base.yaml`)
+
+```yaml
+# Deep SVDD parameters
+deepSVDD:
+  learning_rate: 0.00001
+  weight_decay: 0.00001
+
+# Training configuration
+trainer:
+  batch_size: 32
+  max_epochs: 1000
+  patience: 10
+
+# Network defaults
+network_defaults:
+  activation_fn: "ELU"
+  learning_rate: 0.00001
+  weight_decay: 0.00001
+  bias: false
+
+# Audio preprocessing
+audio_preprocessing:
+  sample_rate: 32000
+  target_audio_length: 10
+  mono: true
+```
+
+### Custom Experiments
+
+Create custom configuration files by extending the base configuration:
+
+```yaml
+# configs/my_experiment.yaml
+base: "base.yaml"
+
+# Override specific parameters
+trainer:
+  batch_size: 64
+  max_epochs: 2000
+
+# Add experiment-specific networks
+networks:
+  - name: "CustomAE"
+    type: "AE"
+    hidden_dims: [1024, 512, 256, 128]
+```
+
+## 📁 Project Structure
+
+```
+music-anomalizer/
+├── 📁 music_anomalizer/          # Main package
+│   ├── 📁 models/                # Neural network models
+│   │   ├── networks.py           # AutoEncoder architectures
+│   │   ├── deepSVDD.py          # Deep SVDD trainer
+│   │   ├── anomaly_detector.py   # High-level detection interface
+│   │   └── layers.py             # Custom neural network layers
+│   ├── 📁 preprocessing/         # Data preprocessing
+│   │   ├── extract_embed.py      # Feature extraction
+│   │   └── wav2embed.py          # Audio-to-embedding conversion
+│   ├── 📁 data/                  # Data loading utilities
+│   ├── 📁 config/               # Configuration management
+│   ├── 📁 scripts/              # Training and evaluation scripts
+│   └── 📁 visualization/        # Plotting and analysis tools
+├── 📁 app/                      # Streamlit web interface
+│   └── 📁 pages/                # Web app pages
+├── 📁 configs/                  # YAML configuration files
+├── 📄 train.py                  # Simple training script
+├── 📄 prepare_data.py           # Data preparation utilities
+└── 📄 README.md                 # This file
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
+3. **Commit** your changes: `git commit -m 'Add amazing feature'`
+4. **Push** to the branch: `git push origin feature/amazing-feature`
+5. **Open** a Pull Request
+
+### Development Setup
+
+```bash
+# Install development dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Format code
+black music_anomalizer/
+isort music_anomalizer/
+
+# Type checking
+mypy music_anomalizer/
+```
+
+## 📄 Citation
+
+If you use this code in your research, please cite:
+
+```bibtex
+@article{music_anomalizer_2024,
+    title={Learning Normal Patterns in Musical Samples: Unsupervised Anomaly Detection for Variable-Length Audio Inputs},
+    author={Music Anomalizer Team},
+    journal={},
+    year={2024},
+    note={Code available at: https://github.com/your-username/music-anomalizer}
+}
+```
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- PyTorch Lightning team for the excellent deep learning framework
+- LAION team for the CLAP model
+- MusicRadar for providing audio loop datasets
+- The research community for Deep SVDD innovations
+
+---
+
+**🎵 Happy anomaly detecting! 🎵**
