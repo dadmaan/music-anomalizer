@@ -27,27 +27,11 @@ import pickle
 import multiprocessing
 from tqdm import tqdm
 
-from music_anomalizer.utils import construct_file_path
+from music_anomalizer.utils import construct_file_path, setup_logging
 from music_anomalizer.config import load_config
 from sklearn.preprocessing import MultiLabelBinarizer
 
 
-def setup_logging(log_level: str = 'INFO') -> logging.Logger:
-    """
-    Configure logging with timestamps and proper formatting.
-    
-    Args:
-        log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
-        
-    Returns:
-        Configured logger instance
-    """
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    return logging.getLogger(__name__)
 
 
 def validate_metadata_file(metadata_path: Union[str, Path]) -> Dict[str, Any]:
