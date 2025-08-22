@@ -5,54 +5,80 @@ import pickle
 import pandas as pd
 import io
 import numpy as np
-from modules.utils import load_json, load_pickle
-from modules.anomaly_detector import AnomalyDetector
-from modules.wav2embed import Wav2Embedding
+from music_anomalizer.utils import load_pickle
+from music_anomalizer.config.loader import load_yaml_config
+from music_anomalizer.models.anomaly_detector import AnomalyDetector
+from music_anomalizer.preprocessing.wav2embed import Wav2Embedding
 import tempfile
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import plotly.express as px
 import plotly.graph_objects as go
 
-# Paths (relative to this file)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONFIG_PATH = os.path.join(BASE_DIR, 'configs', 'exp2_deeper.json')
-CLAP_CKPT = os.path.join(BASE_DIR, 'checkpoints', 'laion_clap', 'music_audioset_epoch_15_esc_90.14.pt')
-AEWRES_BASS_AE = os.path.join(BASE_DIR, 'checkpoints', 'loop_benchmark', 'EXP2_DEEPER', 'AEwRES', 'AEwRES-HTSAT_base_musicradar_bass-AE-epoch=149-val_loss=0.01.ckpt')
-AEWRES_BASS_SVDD = os.path.join(BASE_DIR, 'checkpoints', 'loop_benchmark', 'EXP2_DEEPER', 'AEwRES', 'AEwRES-HTSAT_base_musicradar_bass-DSVDD-epoch=132-val_loss=0.00.ckpt')
-AEWRES_GUITAR_AE = os.path.join(BASE_DIR, 'checkpoints', 'loop_benchmark', 'EXP2_DEEPER', 'AEwRES', 'AEwRES-HTSAT_base_musicradar_guitar-AE-epoch=153-val_loss=0.01.ckpt')
-AEWRES_GUITAR_SVDD = os.path.join(BASE_DIR, 'checkpoints', 'loop_benchmark', 'EXP2_DEEPER', 'AEwRES', 'AEwRES-HTSAT_base_musicradar_guitar-DSVDD-epoch=34-val_loss=0.01.ckpt')
+# Paths (relative to this file - go up two levels: pages -> app -> root)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Available experiment configurations
+AVAILABLE_CONFIGS = ['exp1', 'exp2_deeper', 'single_model']
+DEFAULT_CONFIG = 'exp2_deeper'
 
-MODEL_CHOICES = {
-    'bass': {
-        'ae_ckpt': AEWRES_BASS_AE,
-        'svdd_ckpt': AEWRES_BASS_SVDD,
-        'threshold_key': 'AEwRES_bass',
-        'model_key': 'AEwRES',
-    },
-    'guitar': {
-        'ae_ckpt': AEWRES_GUITAR_AE,
-        'svdd_ckpt': AEWRES_GUITAR_SVDD,
-        'threshold_key': 'AEwRES_guitar',
-        'model_key': 'AEwRES',
+def get_config_path(config_name=DEFAULT_CONFIG):
+    """Get config path for selected experiment."""
+    return os.path.join(BASE_DIR, 'configs', f'{config_name}.yaml')
+CLAP_CKPT = os.path.join(BASE_DIR, 'checkpoints', 'laion_clap', 'music_audioset_epoch_15_esc_90.14.pt')
+
+@st.cache_data
+def get_model_choices(config_name=DEFAULT_CONFIG):
+    """Load model configuration from config file."""
+    config_path = get_config_path(config_name)
+    config = load_yaml_config(config_path)
+    
+    # Get checkpoint paths from config or use defaults
+    manual_paths = config.get('checkpoints', {}).get('manual_paths', {})
+    
+    def resolve_checkpoint_path(path_key, default_path):
+        """Resolve checkpoint path, handling relative paths from config."""
+        path = manual_paths.get(path_key, default_path)
+        if path.startswith('./'):
+            path = path[2:]  # Remove ./ prefix
+        return os.path.join(BASE_DIR, path)
+    
+    return {
+        'bass': {
+            'ae_ckpt': resolve_checkpoint_path('AEwRES_bass_ae', 
+                'checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_bass-AE-epoch=149-val_loss=0.01.ckpt'),
+            'svdd_ckpt': resolve_checkpoint_path('AEwRES_bass_svdd',
+                'checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_bass-DSVDD-epoch=132-val_loss=0.00.ckpt'),
+            'threshold_key': 'AEwRES_bass',
+            'model_key': 'AEwRES',
+        },
+        'guitar': {
+            'ae_ckpt': resolve_checkpoint_path('AEwRES_guitar_ae',
+                'checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_guitar-AE-epoch=153-val_loss=0.01.ckpt'),
+            'svdd_ckpt': resolve_checkpoint_path('AEwRES_guitar_svdd',
+                'checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_guitar-DSVDD-epoch=34-val_loss=0.01.ckpt'),
+            'threshold_key': 'AEwRES_guitar',
+            'model_key': 'AEwRES',
+        }
     }
-}
 
 @st.cache_data
 def load_anomaly_scores(model_type):
     """Load anomaly scores for a given model type."""
-    file_path = os.path.join(BASE_DIR, f'anomaly_scores_{model_type}.pkl')
+    file_path = os.path.join(BASE_DIR, 'output', f'anomaly_scores_{model_type}.pkl')
     with open(file_path, 'rb') as f:
         scores = pickle.load(f)
     return scores
 
 @st.cache_data
-def load_training_data(model_type):
+def load_training_data(model_type, config_name=DEFAULT_CONFIG):
     """Load training embeddings and anomaly scores for a given model type."""
-    config = load_json(CONFIG_PATH)
+    config_path = get_config_path(config_name)
+    config = load_yaml_config(config_path)
     
-    # Load embeddings
+    # Load embeddings - handle relative paths from config
     dataset_path = config['dataset_paths'][f'HTSAT_base_musicradar_{model_type}']
+    if dataset_path.startswith('./'):
+        dataset_path = dataset_path[2:]  # Remove ./ prefix
     full_dataset_path = os.path.join(BASE_DIR, dataset_path)
     embeddings = load_pickle(full_dataset_path)
     
@@ -255,9 +281,11 @@ def get_audio_player(file_path):
         return None, f"Error loading audio: {str(e)}"
 
 
-def detect_loop(wav_path, model, threshold=None):
-    config = load_json(CONFIG_PATH)
-    model_choice = MODEL_CHOICES[model]
+def detect_loop(wav_path, model, threshold=None, config_name=DEFAULT_CONFIG):
+    config_path = get_config_path(config_name)
+    config = load_yaml_config(config_path)
+    model_choices = get_model_choices()
+    model_choice = model_choices[model]
     model_config = config['networks'][model_choice['model_key']]
     svdd_config = config['deepSVDD']
     if threshold is None:
@@ -303,27 +331,58 @@ def main():
     if 'last_model' not in st.session_state:
         st.session_state.last_model = None
 
-    # Model selection
-    model = st.selectbox('🎸 Model type', options=['bass', 'guitar'],
-                         help="Choose the model trained on bass or guitar dataset")
+    # Configuration and model selection
+    col1, col2 = st.columns(2)
+    with col1:
+        config_name = st.selectbox(
+            '⚙️ Experiment Config', 
+            options=AVAILABLE_CONFIGS,
+            index=AVAILABLE_CONFIGS.index(DEFAULT_CONFIG),
+            help="Choose the experiment configuration to use"
+        )
+    with col2:
+        model = st.selectbox(
+            '🎸 Model type', 
+            options=['bass', 'guitar'],
+            help="Choose the model trained on bass or guitar dataset"
+        )
 
-    # If the model changes, clear the previous visualization and selection
-    if st.session_state.last_model != model:
+    # Store config selection in session state
+    if 'last_config' not in st.session_state:
+        st.session_state.last_config = None
+        
+    # If the model or config changes, clear the previous visualization and selection
+    if st.session_state.last_model != model or st.session_state.last_config != config_name:
         st.session_state.fig = None
         st.session_state.selected_audio_path = None
         st.session_state.selected_audio_info = None
         st.session_state.last_model = model
+        st.session_state.last_config = config_name
 
     uploaded_file = st.file_uploader('Choose a WAV file', type=['wav', 'mp3'],
                                      help="Upload a WAV file to analyze")
 
+    # Get default threshold from config
+    config_path = get_config_path(config_name)
+    config = load_yaml_config(config_path)
+    model_choices = get_model_choices(config_name)
+    threshold_key = model_choices[model]['threshold_key']
+    default_threshold = config.get('threshold', {}).get(threshold_key, 0.0)
+    
     col1, col2 = st.columns(2)
     with col1:
-        threshold = st.number_input('Custom Threshold', value=0.0, format="%f",
-                                    help="Lower values = stricter detection (fewer files identified)")
+        threshold = st.number_input(
+            f'Custom Threshold (default: {default_threshold:.6f})', 
+            value=default_threshold, 
+            format="%f",
+            help=f"Lower values = stricter detection. Config default: {default_threshold:.6f}"
+        )
     with col2:
-        use_default_threshold = st.checkbox('Use default threshold from config', value=True,
-                                            help="Use the optimized threshold from the model configuration")
+        use_default_threshold = st.checkbox(
+            'Use default threshold from config', 
+            value=True,
+            help=f"Use the optimized threshold ({default_threshold:.6f}) from {threshold_key}"
+        )
 
     if uploaded_file is not None:
         file_content = uploaded_file.read()
@@ -349,7 +408,7 @@ def main():
         if st.button('Run Analysis'):
             th = None if use_default_threshold else threshold
             with st.spinner('Running analysis...'):
-                is_loop, distance, used_threshold, embedding = detect_loop(tmp_wav_path, model, th)
+                is_loop, distance, used_threshold, embedding = detect_loop(tmp_wav_path, model, th, config_name)
 
             st.markdown("---")
             st.subheader("📊 Analysis Results")
@@ -394,11 +453,11 @@ def main():
         if st.button('Run Visualization'):
             th = None if use_default_threshold else threshold
             with st.spinner('Preparing the Visualization...'):
-                is_loop, distance, used_threshold, embedding = detect_loop(tmp_wav_path, model, th)
+                is_loop, distance, used_threshold, embedding = detect_loop(tmp_wav_path, model, th, config_name)
                 if embedding is not None:
                     with st.spinner(f'Generating {plot_type} visualization...'):
                         try:
-                            embeddings, scores = load_training_data(model)
+                            embeddings, scores = load_training_data(model, config_name)
                             fig, pca, df = create_pca_plot(
                                 embeddings, scores, embedding, distance,
                                 plot_type, point_size, opacity, color_by, used_threshold

@@ -1,16 +1,24 @@
 import streamlit as st
 import os
 import pickle
-from modules.utils import load_json, load_pickle
+from music_anomalizer.utils import load_pickle
+from music_anomalizer.config.loader import load_yaml_config
 
-# Paths (relative to this file)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONFIG_PATH = os.path.join(BASE_DIR, 'configs', 'exp2_deeper.json')
+# Paths (relative to this file - go up two levels: pages -> app -> root)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Available experiment configurations
+AVAILABLE_CONFIGS = ['exp1', 'exp2_deeper', 'single_model']
+DEFAULT_CONFIG = 'exp2_deeper'
+
+def get_config_path(config_name=DEFAULT_CONFIG):
+    """Get config path for selected experiment."""
+    return os.path.join(BASE_DIR, 'configs', f'{config_name}.yaml')
 
 @st.cache_data
 def load_anomaly_scores(model_type):
     """Load anomaly scores for a given model type."""
-    file_path = os.path.join(BASE_DIR, f'anomaly_scores_{model_type}.pkl')
+    file_path = os.path.join(BASE_DIR, 'output', f'anomaly_scores_{model_type}.pkl')
     with open(file_path, 'rb') as f:
         scores = pickle.load(f)
     return scores
@@ -19,9 +27,9 @@ def get_audio_file_path(relative_path):
     """Convert relative path from anomaly scores to absolute path."""
     return os.path.join(BASE_DIR, relative_path)
 
-def display_top_loops(model_type):
+def display_top_loops(model_type, config_name=DEFAULT_CONFIG):
     """Display the top 3 loops with lowest anomaly scores."""
-    st.subheader(f"🎵 Top 3 'Normal' Training Loops ({model_type.capitalize()})")
+    st.subheader(f"🎵 Top 3 'Normal' Training Loops ({model_type.capitalize()}) - {config_name}")
     st.write("These are the most typical examples from the training dataset (lowest anomaly scores). Listen to understand what the model considers 'normal' examples.")
     
     try:
@@ -65,9 +73,9 @@ def display_top_loops(model_type):
     except Exception as e:
         st.error(f"❌ Error loading anomaly scores for {model_type}: {str(e)}")
 
-def display_last_loops(model_type):
+def display_last_loops(model_type, config_name=DEFAULT_CONFIG):
     """Display the top 3 loops with lowest anomaly scores."""
-    st.subheader(f"🎵 Lowest 3 'Normal' Training Loops ({model_type.capitalize()})")
+    st.subheader(f"🎵 Lowest 3 'Normal' Training Loops ({model_type.capitalize()}) - {config_name}")
     st.write("These are the least typical examples from the training dataset (highest anomaly scores). Listen to understand what the model considers 'anomaly' examples.")
     
     try:
@@ -114,13 +122,22 @@ def main():
     st.title('Loop Detector')
     st.write('Identifies the similarity of a WAV file to the original (training) data using anomaly detection based on deep learning models. The model is trained on a dataset of MusicRadar loops.')
     
-    # Model selection at the top
-    model = st.selectbox('🎸 Model type', options=['bass', 'guitar'], 
-                        help="Choose the model trained on bass or guitar dataset")
+    # Configuration and model selection
+    col1, col2 = st.columns(2)
+    with col1:
+        config_name = st.selectbox(
+            '⚙️ Experiment Config', 
+            options=AVAILABLE_CONFIGS,
+            index=AVAILABLE_CONFIGS.index(DEFAULT_CONFIG),
+            help="Choose the experiment configuration to use"
+        )
+    with col2:
+        model = st.selectbox('🎸 Model type', options=['bass', 'guitar'], 
+                            help="Choose the model trained on bass or guitar dataset")
     
     # Display top and lowest 3 training examples
-    display_top_loops(model)
-    display_last_loops(model)
+    display_top_loops(model, config_name)
+    display_last_loops(model, config_name)
     
 
 if __name__ == '__main__':
