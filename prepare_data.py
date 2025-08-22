@@ -27,23 +27,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
-
-def setup_logging(log_level: str = "INFO") -> logging.Logger:
-    """Setup logging configuration with timestamps and proper formatting.
-    
-    Args:
-        log_level (str): Logging level ('DEBUG', 'INFO', 'WARNING', 'ERROR')
-        
-    Returns:
-        logging.Logger: Configured logger instance
-    """
-    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format=log_format,
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    return logging.getLogger(__name__)
+from music_anomalizer.utils import setup_logging
 
 
 def validate_audio_directory(audio_dir: Path) -> bool:
