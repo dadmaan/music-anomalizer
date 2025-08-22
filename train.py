@@ -33,27 +33,10 @@ import torch
 # Add the project root to the Python path to enable module imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from music_anomalizer.utils import load_pickle, PickleHandler, create_folder
+from music_anomalizer.utils import load_pickle, PickleHandler, create_folder, setup_logging
 from music_anomalizer.config import load_experiment_config
 from music_anomalizer.models.deepSVDD import DeepSVDDTrainer
 
-
-def setup_logging(log_level: str = "INFO") -> logging.Logger:
-    """Setup logging configuration with emoji indicators and proper formatting.
-    
-    Args:
-        log_level (str): Logging level ('DEBUG', 'INFO', 'WARNING', 'ERROR')
-        
-    Returns:
-        logging.Logger: Configured logger instance
-    """
-    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format=log_format,
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    return logging.getLogger(__name__)
 
 
 def initialize_device(device_preference: str = "auto") -> torch.device:
