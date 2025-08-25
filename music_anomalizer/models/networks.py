@@ -379,6 +379,9 @@ CLASS_REGISTRY = {
     'AutoEncoder': AutoEncoder,
     'AutoEncoderWithResidual': AutoEncoderWithResidual,
     'SVDD': SVDD,
+    # Add aliases used in configuration files
+    'AE': AutoEncoder,
+    'AEwRES': AutoEncoderWithResidual,
 }
 
 def create_network(config: Dict[str, Any]) -> pl.LightningModule:
