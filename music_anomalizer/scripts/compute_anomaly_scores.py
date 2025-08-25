@@ -185,13 +185,24 @@ def compute_anomaly_scores(model_type: str, config_name: str = DEFAULT_CONFIG,
         model_config = config.networks[model_choice['model_key']].model_dump()
         svdd_config = config.deepSVDD.model_dump()
         
-        # Build dataset paths
+        # Get dataset paths from configuration
         dataset_name = model_choice['dataset_name']
-        dataset_path = PROJECT_ROOT / 'data' / 'pickle' / 'embedding' / 'musicradar' / f'{dataset_name}_embeddings.pkl'
-        dataset_index_path = PROJECT_ROOT / 'data' / 'pickle' / 'embedding' / 'musicradar' / f'{dataset_name}_embeddings_index.pkl'
+        dataset_key = f'HTSAT_base_musicradar_{model_type}'
+        if dataset_key not in config.dataset_paths:
+            raise ValueError(f"Dataset path not found in config: {dataset_key}")
+        
+        # Build dataset paths from config
+        dataset_path_str = config.dataset_paths[dataset_key]
+        # Handle relative paths from config
+        if dataset_path_str.startswith('./'):
+            dataset_path_str = dataset_path_str[2:]  # Remove ./ prefix
+        
+        dataset_path = PROJECT_ROOT / dataset_path_str
+        # Assume index file follows naming convention (add _index before .pkl)
+        dataset_index_path = dataset_path.with_name(dataset_path.stem + '_index.pkl')
         
         # Validate datasets
-        is_valid, error_msg = validate_dataset(dataset_path, dataset_index_path)
+        is_valid, error_msg, _ = validate_dataset(dataset_path, dataset_index_path)
         if not is_valid:
             raise ValueError(error_msg)
         
