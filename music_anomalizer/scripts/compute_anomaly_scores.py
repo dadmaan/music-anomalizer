@@ -40,15 +40,15 @@ BASE_DIR = Path(__file__).parent
 PROJECT_ROOT = BASE_DIR.parent.parent
 
 
-def get_default_model_choices() -> Dict[str, Dict[str, Any]]:
-    """Get default model choices with fallback paths."""
+def get_model_choices_from_config(config, network_key: str = 'AEwRES') -> Dict[str, Dict[str, Any]]:
+    """Get model choices based on configuration and selected network."""
     return {
         'bass': {
-            'model_key': 'AEwRES',
+            'model_key': network_key,
             'dataset_name': 'HTSAT_base_musicradar_bass',
         },
         'guitar': {
-            'model_key': 'AEwRES', 
+            'model_key': network_key, 
             'dataset_name': 'HTSAT_base_musicradar_guitar',
         }
     }
@@ -149,7 +149,8 @@ def initialize_anomaly_detector(model_config: Dict, svdd_config: Dict,
         raise ValueError(f"Model initialization failed: {e}") from e
 
 def compute_anomaly_scores(model_type: str, config_name: str = DEFAULT_CONFIG,
-                         device: torch.device = None, output_path: Optional[Path] = None) -> List[Dict]:
+                         network_key: str = 'AEwRES', device: torch.device = None, 
+                         output_path: Optional[Path] = None) -> List[Dict]:
     """Compute anomaly scores for all files in the training dataset.
     
     Args:
@@ -167,7 +168,9 @@ def compute_anomaly_scores(model_type: str, config_name: str = DEFAULT_CONFIG,
     logger = logging.getLogger('compute_anomaly_scores')
     
     if device is None:
-        device = initialize_device()
+        device = str(initialize_device())
+    elif isinstance(device, torch.device):
+        device = str(device)
     
     try:
         logger.info(f" Computing anomaly scores for {model_type} model...")
@@ -177,7 +180,7 @@ def compute_anomaly_scores(model_type: str, config_name: str = DEFAULT_CONFIG,
         config = load_experiment_config(config_name)
         
         # Get model configuration
-        model_choices = get_default_model_choices()
+        model_choices = get_model_choices_from_config(config, network_key)
         if model_type not in model_choices:
             raise ValueError(f"Unknown model type: {model_type}. Available: {list(model_choices.keys())}")
         
@@ -346,6 +349,11 @@ def parse_arguments() -> argparse.Namespace:
     )
     
     parser.add_argument(
+        '--network',
+        help='Network type to use (default: AEwRES)'
+    )
+    
+    parser.add_argument(
         '--log-level',
         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
         default='INFO',
@@ -380,7 +388,8 @@ def validate_configuration(args: argparse.Namespace) -> bool:
             raise ValueError(f"Failed to load configuration '{args.config}': {e}")
         
         # Validate model types
-        model_choices = get_default_model_choices()
+        config = load_experiment_config(args.config)
+        model_choices = get_model_choices_from_config(config, 'AEwRES')  # Use default network for validation
         if args.model_type != 'both' and args.model_type not in model_choices:
             raise ValueError(f"Unknown model type: {args.model_type}")
         
@@ -491,6 +500,7 @@ def main() -> int:
                 model_results = compute_anomaly_scores(
                     model_type=model_type,
                     config_name=args.config,
+                    network_key=args.network if args.network else 'AEwRES',
                     device=device,
                     output_path=output_path
                 )
