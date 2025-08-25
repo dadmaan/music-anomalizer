@@ -7,7 +7,7 @@ architecture while offering simplicity for practical applications.
 
 Key features:
 - Single model training with intuitive CLI interface
-- Uses existing configuration system (single_model.yaml)
+- Uses existing configuration system with config selection
 - Support for all network architectures (AE, AEwRES, Baseline, DeepAE, CompactAE)
 - Consistent with train_models.py but simplified for single-model use
 - Built-in dataset validation and preprocessing
@@ -19,6 +19,8 @@ Usage:
     python train.py --dataset data.pkl --network AEwRES --model-name my_model
     python train.py --dataset data.pkl --network DeepAE --epochs 500 --batch-size 64
     python train.py --dataset data.pkl --network CompactAE --wandb-project "MyProject"
+    python train.py --dataset data.pkl --network AE --config exp1
+    python train.py --dataset data.pkl --network AEwRES --config exp2_deeper
     python train.py --help  # Show all available options
 """
 
@@ -29,6 +31,7 @@ import logging
 from typing import Optional, Dict, Any
 from pathlib import Path
 import torch
+import shutil
 
 # Add the project root to the Python path to enable module imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -41,6 +44,7 @@ from music_anomalizer.models.deepSVDD import DeepSVDDTrainer
 def train_single_model(
     dataset_path: str,
     network_type: str,
+    config_name: str = "single_model",
     model_name: Optional[str] = None,
     output_dir: str = "./models",
     # Training parameter overrides
@@ -62,6 +66,7 @@ def train_single_model(
     Args:
         dataset_path (str): Path to the dataset pickle file
         network_type (str): Type of network ('AE', 'AEwRES', 'Baseline', 'DeepAE', 'CompactAE')
+        config_name (str): Name of the configuration file to use (default: "single_model")
         model_name (Optional[str]): Name for the trained model
         output_dir (str): Directory to save model checkpoints
         batch_size (Optional[int]): Override batch size from config
@@ -87,19 +92,21 @@ def train_single_model(
     
     logger.info(f"🚀 Starting training for model: {model_name}")
     logger.info(f"📊 Network type: {network_type}")
+    logger.info(f"⚙️  Configuration: {config_name}")
     logger.info(f"📁 Dataset: {dataset_path}")
     
     # Validate and load dataset
-    data = validate_dataset(dataset_path)
-    if data is None:
+    is_valid, error_msg, data = validate_dataset(dataset_path, load_data=True)
+    if not is_valid:
+        logger.error(f"❌ Dataset validation failed: {error_msg}")
         return None
     
     # Load configuration
     try:
-        config = load_experiment_config("single_model")
-        logger.info("✅ Configuration loaded: single_model.yaml")
+        config = load_experiment_config(config_name)
+        logger.info(f"✅ Configuration loaded: {config_name}.yaml")
     except Exception as e:
-        logger.error(f"❌ Failed to load configuration: {e}")
+        logger.error(f"❌ Failed to load configuration '{config_name}': {e}")
         return None
     
     # Validate network type
@@ -154,6 +161,7 @@ def train_single_model(
     logger.info(f"📊 Progress bar: {enable_progress_bar}")
     
     # Create output directory
+    
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     logger.info(f"📁 Output directory: {output_path.absolute()}")
@@ -183,13 +191,48 @@ def train_single_model(
         
         # Get training results
         best_model_paths = trainer.get_best_model_path()
-        trained_model = trainer.get_trained_dsvdd_model()
+        trained_encoder = trainer.get_trained_encoder_model()
+        trained_dsvdd = trainer.get_trained_dsvdd_model()
         center = trainer.get_center()
         
-        # Save center vector
-        center_path = output_path / f"{model_name}_center.pkl"
+        # Copy checkpoint files to output directory and save trained models
+        saved_model_paths = {}
+        
+        # Copy AE checkpoint
+        if f"{model_name}-AE" in best_model_paths:
+            ae_source = best_model_paths[f"{model_name}-AE"]
+            ae_dest = output_path / f"{model_name}_AE.ckpt"
+            shutil.copy2(ae_source, ae_dest)
+            saved_model_paths["ae_checkpoint"] = str(ae_dest)
+            logger.info(f"💾 AE checkpoint saved: {ae_dest}")
+        
+        # Copy DSVDD checkpoint
+        if f"{model_name}-DSVDD" in best_model_paths:
+            dsvdd_source = best_model_paths[f"{model_name}-DSVDD"]
+            dsvdd_dest = output_path / f"{model_name}_DSVDD.ckpt"
+            shutil.copy2(dsvdd_source, dsvdd_dest)
+            saved_model_paths["dsvdd_checkpoint"] = str(dsvdd_dest)
+            logger.info(f"💾 DSVDD checkpoint saved: {dsvdd_dest}")
+        
+        # Save trained encoder model as PyTorch state dict
+        if trained_encoder is not None:
+            encoder_path = output_path / f"{model_name}_encoder.pth"
+            torch.save(trained_encoder.state_dict(), encoder_path)
+            saved_model_paths["encoder_model"] = str(encoder_path)
+            logger.info(f"💾 Encoder model saved: {encoder_path}")
+        
+        # Save trained DSVDD model as PyTorch state dict
+        if trained_dsvdd is not None:
+            dsvdd_path = output_path / f"{model_name}_dsvdd.pth"
+            torch.save(trained_dsvdd.state_dict(), dsvdd_path)
+            saved_model_paths["dsvdd_model"] = str(dsvdd_path)
+            logger.info(f"💾 DSVDD model saved: {dsvdd_path}")
+        
+        # Save center vector (consistent with train_models.py naming)
+        center_path = output_path / f"{model_name}_z_vector.pkl"
         ph = PickleHandler(str(center_path))
         ph.dump_data(center)
+        saved_model_paths["center_vector"] = str(center_path)
         logger.info(f"💾 Center vector saved: {center_path}")
         
         # Prepare results
@@ -197,9 +240,10 @@ def train_single_model(
             'model_name': model_name,
             'network_type': network_type,
             'best_model_paths': best_model_paths,
-            'trained_model': trained_model,
+            'saved_model_paths': saved_model_paths,
+            'trained_encoder': trained_encoder,
+            'trained_dsvdd': trained_dsvdd,
             'center': center,
-            'center_path': str(center_path),
             'output_directory': str(output_path),
             'dataset_path': dataset_path,
             'dataset_size': len(data),
@@ -211,9 +255,11 @@ def train_single_model(
         }
         
         logger.info("🎉 Training process completed successfully!")
-        logger.info(f"📄 Model paths:")
-        for key, path in best_model_paths.items():
-            logger.info(f"   {key}: {path}")
+        logger.info(f"📁 Models saved to: {output_path.absolute()}")
+        logger.info(f"📄 Saved files:")
+        for key, path in saved_model_paths.items():
+            filename = Path(path).name
+            logger.info(f"   {key}: {filename}")
         
         return results
         
@@ -274,6 +320,12 @@ Examples:
         type=str,
         default="./models",
         help="Output directory for model checkpoints (default: ./models)"
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="single_model",
+        help="Configuration file name (default: single_model)"
     )
     
     # Training parameter overrides
@@ -390,14 +442,14 @@ Examples:
         logger.info("🧪 Dry run mode - validating configuration and dataset")
         
         # Validate dataset
-        data = validate_dataset(args.dataset)
-        if data is None:
-            logger.error("❌ Dataset validation failed")
+        is_valid, error_msg, data = validate_dataset(args.dataset, load_data=True)
+        if not is_valid:
+            logger.error(f"❌ Dataset validation failed: {error_msg}")
             sys.exit(1)
         
         # Load and validate configuration
         try:
-            config = load_experiment_config("single_model")
+            config = load_experiment_config(args.config)
             if args.network not in config.networks:
                 available_networks = list(config.networks.keys())
                 logger.error(f"❌ Unsupported network type: {args.network}")
@@ -421,6 +473,7 @@ Examples:
     results = train_single_model(
         dataset_path=args.dataset,
         network_type=args.network,
+        config_name=args.config,
         model_name=model_name,
         output_dir=args.output_dir,
         # Training parameter overrides
@@ -442,8 +495,8 @@ Examples:
         sys.exit(1)
     else:
         logger.info("🎉 Training completed successfully!")
-        logger.info(f"📁 Checkpoints saved in: {results['output_directory']}")
-        logger.info(f"📄 Model paths: {list(results['best_model_paths'].keys())}")
+        logger.info(f"📁 Models saved in: {results['output_directory']}")
+        logger.info(f"📄 Saved files: {list(results['saved_model_paths'].keys())}")
         sys.exit(0)
 
 
