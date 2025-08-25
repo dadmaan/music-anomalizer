@@ -21,6 +21,9 @@ import argparse
 import pytorch_lightning as pl
 from typing import Dict, Any, Optional, Tuple, List
 
+# Import anomaly scores manager
+from music_anomalizer.anomaly_scores_manager import AnomalyScoresManager, get_anomaly_scores_manager
+
 # MARK: General Utils
 def cleanup():
     torch.cuda.empty_cache()  # Clear CUDA cache
