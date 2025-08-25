@@ -33,90 +33,9 @@ import torch
 # Add the project root to the Python path to enable module imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from music_anomalizer.utils import load_pickle, PickleHandler, create_folder, setup_logging
+from music_anomalizer.utils import load_pickle, PickleHandler, create_folder, setup_logging, initialize_device, validate_dataset
 from music_anomalizer.config import load_experiment_config
 from music_anomalizer.models.deepSVDD import DeepSVDDTrainer
-
-
-
-def initialize_device(device_preference: str = "auto") -> torch.device:
-    """Initialize computation device with fallback support.
-    
-    Args:
-        device_preference (str): Device preference ('auto', 'cpu', 'cuda')
-        
-    Returns:
-        torch.device: Selected device
-    """
-    logger = logging.getLogger(__name__)
-    
-    if device_preference == "cpu":
-        device = torch.device('cpu')
-        logger.info("🖥️  Using CPU (forced)")
-    elif device_preference == "cuda":
-        if not torch.cuda.is_available():
-            logger.warning("⚠️  CUDA requested but not available, falling back to CPU")
-            device = torch.device('cpu')
-        else:
-            device = torch.device('cuda')
-            logger.info(f"🚀 Using CUDA device: {torch.cuda.get_device_name()}")
-    else:  # auto
-        use_cuda = torch.cuda.is_available()
-        device = torch.device('cuda' if use_cuda else 'cpu')
-        if use_cuda:
-            logger.info(f"🚀 Auto-detected CUDA device: {torch.cuda.get_device_name()}")
-        else:
-            logger.info("🖥️  Auto-detected CPU (CUDA not available)")
-    
-    return device
-
-
-def validate_dataset(dataset_path: str) -> Optional[Any]:
-    """Validate and load dataset with comprehensive checks.
-    
-    Args:
-        dataset_path (str): Path to dataset pickle file
-        
-    Returns:
-        Optional[Any]: Loaded dataset or None if validation fails
-    """
-    logger = logging.getLogger(__name__)
-    
-    # Convert to Path object for better handling
-    dataset_file = Path(dataset_path)
-    
-    # Check if file exists
-    if not dataset_file.exists():
-        logger.error(f"❌ Dataset file not found: {dataset_path}")
-        return None
-    
-    # Check file extension
-    if dataset_file.suffix.lower() != '.pkl':
-        logger.warning(f"⚠️  Dataset file doesn't have .pkl extension: {dataset_path}")
-    
-    # Check file size
-    file_size = dataset_file.stat().st_size
-    if file_size == 0:
-        logger.error(f"❌ Dataset file is empty: {dataset_path}")
-        return None
-    
-    # Load and validate dataset
-    try:
-        data = load_pickle(str(dataset_file))
-        if data is None:
-            logger.error(f"❌ Dataset loaded as None: {dataset_path}")
-            return None
-        
-        if len(data) == 0:
-            logger.error(f"❌ Dataset is empty: {dataset_path}")
-            return None
-        
-        logger.info(f"✅ Dataset loaded successfully: {len(data)} samples ({file_size / (1024*1024):.1f} MB)")
-        return data
-        
-    except Exception as e:
-        logger.error(f"❌ Error loading dataset from {dataset_path}: {e}")
-        return None
 
 
 def train_single_model(
