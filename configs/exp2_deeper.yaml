@@ -49,3 +49,8 @@ checkpoints:
     AEwRES_bass_svdd: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_bass-DSVDD-epoch=88-val_loss=0.00.ckpt"
     AEwRES_guitar_ae: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_guitar-AE-epoch=102-val_loss=0.01.ckpt"
     AEwRES_guitar_svdd: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_guitar-DSVDD-epoch=101-val_loss=0.00.ckpt"
+    
+    AE_bass_ae: "checkpoints/loop_benchmark/EXP2_DEEPER/AE/AE-HTSAT_base_musicradar_bass-AE-epoch=103-val_loss=0.02.ckpt"
+    AE_bass_svdd: "checkpoints/loop_benchmark/EXP2_DEEPER/AE/AE-HTSAT_base_musicradar_bass-DSVDD-epoch=118-val_loss=0.00.ckpt"
+    AE_guitar_ae: "checkpoints/loop_benchmark/EXP2_DEEPER/AE/AE-HTSAT_base_musicradar_guitar-AE-epoch=78-val_loss=0.03.ckpt"
+    AE_guitar_svdd: "checkpoints/loop_benchmark/EXP2_DEEPER/AE/AE-HTSAT_base_musicradar_guitar-DSVDD-epoch=225-val_loss=0.00.ckpt"
