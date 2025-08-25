@@ -40,8 +40,17 @@ def get_config_path(config_name=DEFAULT_CONFIG):
 
 CLAP_CKPT = BASE_DIR / 'checkpoints' / 'laion_clap' / 'music_audioset_epoch_15_esc_90.14.pt'
 
+def get_available_networks(config_name):
+    """Get available network types from config."""
+    try:
+        config = load_experiment_config(config_name, str(BASE_DIR / 'configs'))
+        return list(config.networks.keys())
+    except Exception as e:
+        logger.error(f"Failed to load network types: {e}")
+        return ['AEwRES']  # fallback
+
 @st.cache_data
-def get_model_choices(config_name=DEFAULT_CONFIG):
+def get_model_choices(config_name=DEFAULT_CONFIG, network_key='AEwRES'):
     """Load model configuration and checkpoint paths using proper config management."""
     try:
         # Load experiment configuration
@@ -51,16 +60,18 @@ def get_model_choices(config_name=DEFAULT_CONFIG):
         # Get checkpoints from registry or manual paths
         experiment_name = config.config_name.upper()
         
-        def get_checkpoint_paths(model_type: str, network_key: str = 'AEwRES'):
+        def get_checkpoint_paths(model_type: str, net_key: str = None):
             """Get checkpoint paths for a model type using checkpoint registry."""
+            if net_key is None:
+                net_key = network_key
             try:
                 # Try to get checkpoints from registry first
                 checkpoints = checkpoint_registry.get_model_checkpoints(
-                    experiment_name, network_key, f'HTSAT_base_musicradar_{model_type}'
+                    experiment_name, net_key, f'HTSAT_base_musicradar_{model_type}'
                 )
                 return {
-                    'ae_ckpt': checkpoints.get(f'{network_key}-HTSAT_base_musicradar_{model_type}-AE'),
-                    'svdd_ckpt': checkpoints.get(f'{network_key}-HTSAT_base_musicradar_{model_type}-DSVDD'),
+                    'ae_ckpt': checkpoints.get(f'{net_key}-HTSAT_base_musicradar_{model_type}-AE'),
+                    'svdd_ckpt': checkpoints.get(f'{net_key}-HTSAT_base_musicradar_{model_type}-DSVDD'),
                 }
             except (KeyError, FileNotFoundError) as e:
                 logger.warning(f"Checkpoint registry failed for {model_type}: {e}")
@@ -74,19 +85,19 @@ def get_model_choices(config_name=DEFAULT_CONFIG):
                     return str(BASE_DIR / path)
                 
                 return {
-                    'ae_ckpt': resolve_path(f'{network_key}_{model_type}_ae', 
-                        f'checkpoints/loop_benchmark/{experiment_name}/{network_key}/{network_key}-HTSAT_base_musicradar_{model_type}-AE-epoch=149-val_loss=0.01.ckpt'),
-                    'svdd_ckpt': resolve_path(f'{network_key}_{model_type}_svdd',
-                        f'checkpoints/loop_benchmark/{experiment_name}/{network_key}/{network_key}-HTSAT_base_musicradar_{model_type}-DSVDD-epoch=132-val_loss=0.00.ckpt'),
+                    'ae_ckpt': resolve_path(f'{net_key}_{model_type}_ae', 
+                        f'checkpoints/loop_benchmark/{experiment_name}/{net_key}/{net_key}-HTSAT_base_musicradar_{model_type}-AE-epoch=149-val_loss=0.01.ckpt'),
+                    'svdd_ckpt': resolve_path(f'{net_key}_{model_type}_svdd',
+                        f'checkpoints/loop_benchmark/{experiment_name}/{net_key}/{net_key}-HTSAT_base_musicradar_{model_type}-DSVDD-epoch=132-val_loss=0.00.ckpt'),
                 }
         
         model_choices = {}
         for model_type in ['bass', 'guitar']:
-            checkpoints = get_checkpoint_paths(model_type)
+            checkpoints = get_checkpoint_paths(model_type, network_key)
             model_choices[model_type] = {
                 **checkpoints,
-                'threshold_key': f'AEwRES_{model_type}',
-                'model_key': 'AEwRES',
+                'threshold_key': f'{network_key}_{model_type}',
+                'model_key': network_key,
             }
         
         return model_choices
@@ -97,7 +108,7 @@ def get_model_choices(config_name=DEFAULT_CONFIG):
         return {}
 
 @st.cache_data
-def load_anomaly_scores(model_type, config_name=DEFAULT_CONFIG):
+def load_anomaly_scores(model_type, config_name=DEFAULT_CONFIG, network_key='AEwRES'):
     """Load anomaly scores for a given model type, computing them if necessary."""
     manager = get_anomaly_scores_manager()
     
@@ -116,6 +127,7 @@ def load_anomaly_scores(model_type, config_name=DEFAULT_CONFIG):
     scores, error = manager.load_scores(
         model_type=model_type,
         config_name=config_name,
+        network_key=network_key,
         auto_compute=True,
         progress_callback=progress_callback
     )
@@ -127,7 +139,7 @@ def load_anomaly_scores(model_type, config_name=DEFAULT_CONFIG):
     return scores
 
 @st.cache_data
-def load_training_data(model_type, config_name=DEFAULT_CONFIG):
+def load_training_data(model_type, config_name=DEFAULT_CONFIG, network_key='AEwRES'):
     """Load training embeddings and anomaly scores for a given model type."""
     try:
         config = load_experiment_config(config_name, str(BASE_DIR / 'configs'))
@@ -152,7 +164,7 @@ def load_training_data(model_type, config_name=DEFAULT_CONFIG):
             raise ValueError(f"Failed to load embeddings from {full_dataset_path}")
         
         # Load anomaly scores using the manager
-        scores = load_anomaly_scores(model_type, config_name)
+        scores = load_anomaly_scores(model_type, config_name, network_key)
         
         logger.info(f"Loaded {len(embeddings)} embeddings and {len(scores)} scores for {model_type}")
         return embeddings, scores
@@ -346,8 +358,9 @@ def get_audio_player(file_path):
 class LoopDetectionService:
     """Service class for loop detection using proper music_anomalizer integration."""
     
-    def __init__(self, config_name=DEFAULT_CONFIG):
+    def __init__(self, config_name=DEFAULT_CONFIG, network_key='AEwRES'):
         self.config_name = config_name
+        self.network_key = network_key
         self.config = None
         self.device = initialize_device()
         self.detector = None
@@ -360,7 +373,7 @@ class LoopDetectionService:
             self.config = load_experiment_config(self.config_name, str(BASE_DIR / 'configs'))
             
             # Get model choices
-            model_choices = get_model_choices(self.config_name)
+            model_choices = get_model_choices(self.config_name, self.network_key)
             if model_type not in model_choices:
                 raise ValueError(f"Model type '{model_type}' not available")
             
@@ -409,7 +422,7 @@ class LoopDetectionService:
             )
             self.detector.load_models()
             
-            logger.info(f"Loop detection service initialized for {model_type} model")
+            logger.info(f"Loop detection service initialized for {model_type} model with {self.network_key} network")
             return True
             
         except Exception as e:
@@ -430,7 +443,7 @@ class LoopDetectionService:
             
             # Get threshold from config if not provided
             if threshold is None:
-                model_choices = get_model_choices(self.config_name)
+                model_choices = get_model_choices(self.config_name, self.network_key)
                 threshold_key = model_choices[model_type]['threshold_key']
                 threshold = self.config.threshold.get(threshold_key)
                 if threshold is None:
@@ -464,13 +477,13 @@ class LoopDetectionService:
 
 # Global service instance
 @st.cache_resource
-def get_loop_detection_service():
+def get_loop_detection_service(config_name=DEFAULT_CONFIG, network_key='AEwRES'):
     """Get cached loop detection service instance."""
-    return LoopDetectionService()
+    return LoopDetectionService(config_name, network_key)
 
-def detect_loop(wav_path, model_type, threshold=None, config_name=DEFAULT_CONFIG):
+def detect_loop(wav_path, model_type, threshold=None, config_name=DEFAULT_CONFIG, network_key='AEwRES'):
     """Wrapper function for backward compatibility."""
-    service = get_loop_detection_service()
+    service = get_loop_detection_service(config_name, network_key)
     return service.detect_loop(wav_path, model_type, threshold)
 
 def main():
@@ -490,7 +503,7 @@ def main():
         st.session_state.last_model = None
 
     # Configuration and model selection
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         config_name = st.selectbox(
             '⚙️ Experiment Config', 
@@ -498,7 +511,35 @@ def main():
             index=AVAILABLE_CONFIGS.index(DEFAULT_CONFIG),
             help="Choose the experiment configuration to use"
         )
+        
+        # Add "Set New Config" button to reset states when changing configs
+        if st.button("Set Config", help="Reset all states to use this configuration"):
+            # Clear all session state variables related to analysis
+            keys_to_clear = [
+                'selected_audio_path', 'selected_audio_info', 'fig', 'plot_dataframe',
+                'last_model', 'last_config', 'last_network'
+            ]
+            for key in keys_to_clear:
+                if key in st.session_state:
+                    del st.session_state[key]
+            
+            # Clear cached data to force re-computation with new config
+            st.cache_data.clear()
+            
+            st.success("✅ States reset for new configuration!")
+            st.rerun()  # Refresh the page
     with col2:
+        # Get available networks for the selected config
+        available_networks = get_available_networks(config_name)
+        default_network = 'AEwRES' if 'AEwRES' in available_networks else available_networks[0] if available_networks else 'AEwRES'
+        
+        network_type = st.selectbox(
+            '🧠 Network Type', 
+            options=available_networks,
+            index=available_networks.index(default_network) if default_network in available_networks else 0,
+            help="Choose the network architecture to use"
+        )
+    with col3:
         model = st.selectbox(
             '🎸 Model type', 
             options=['bass', 'guitar'],
@@ -511,7 +552,7 @@ def main():
         
         # Show current anomaly scores status
         manager = get_anomaly_scores_manager()
-        scores_info = manager.get_scores_info(model, config_name)
+        scores_info = manager.get_scores_info(model, config_name, network_type)
         
         if scores_info['exists'] and scores_info['valid']:
             st.success(f"✅ Anomaly scores loaded ({scores_info['num_scores']} samples)")
@@ -531,6 +572,7 @@ def main():
                     success, error = manager.compute_missing_scores(
                         model_type=model,
                         config_name=config_name,
+                        network_key=network_type,
                         force_recompute=True
                     )
                     
@@ -546,14 +588,19 @@ def main():
     # Store config selection in session state
     if 'last_config' not in st.session_state:
         st.session_state.last_config = None
+    if 'last_network' not in st.session_state:
+        st.session_state.last_network = None
         
-    # If the model or config changes, clear the previous visualization and selection
-    if st.session_state.last_model != model or st.session_state.last_config != config_name:
+    # If the model, config, or network changes, clear the previous visualization and selection
+    if (st.session_state.last_model != model or 
+        st.session_state.last_config != config_name or 
+        st.session_state.last_network != network_type):
         st.session_state.fig = None
         st.session_state.selected_audio_path = None
         st.session_state.selected_audio_info = None
         st.session_state.last_model = model
         st.session_state.last_config = config_name
+        st.session_state.last_network = network_type
 
     uploaded_file = st.file_uploader('Choose a WAV file', type=['wav', 'mp3'],
                                      help="Upload a WAV file to analyze")
@@ -610,7 +657,7 @@ def main():
             
             try:
                 with st.spinner('Running analysis...'):
-                    is_loop, distance, used_threshold, embedding = detect_loop(tmp_wav_path, model, th, config_name)
+                    is_loop, distance, used_threshold, embedding = detect_loop(tmp_wav_path, model, th, config_name, network_type)
 
                 st.markdown("---")
                 st.subheader("📊 Analysis Results")
@@ -618,6 +665,7 @@ def main():
                 with col1:
                     st.write(f"**📁 Input File:** {uploaded_file.name}")
                     st.write(f"**🎸 Model:** {model.capitalize()}")
+                    st.write(f"**🧠 Network:** {network_type}")
                 with col2:
                     st.write(f"**🎯 Threshold:** {used_threshold:.6f}")
                     if distance is not None:
@@ -662,12 +710,12 @@ def main():
             
             try:
                 with st.spinner('Preparing the Visualization...'):
-                    is_loop, distance, used_threshold, embedding = detect_loop(tmp_wav_path, model, th, config_name)
+                    is_loop, distance, used_threshold, embedding = detect_loop(tmp_wav_path, model, th, config_name, network_type)
                     
                     if embedding is not None:
                         # Check if training data (especially anomaly scores) need to be computed
                         manager = get_anomaly_scores_manager()
-                        scores_exist, error = manager.check_scores_exist(model, config_name)
+                        scores_exist, error = manager.check_scores_exist(model, config_name, network_type)
                         
                         if not scores_exist:
                             st.warning(f"⚠️ Anomaly scores for {model} model ({config_name}) not found. Computing them now...")
@@ -676,7 +724,7 @@ def main():
                                 st._current_progress_bar = progress_bar
                         
                         with st.spinner(f'Generating {plot_type} visualization...'):
-                            embeddings, scores = load_training_data(model, config_name)
+                            embeddings, scores = load_training_data(model, config_name, network_type)
                             
                             if embeddings is not None and scores is not None:
                                 fig, _, df = create_pca_plot(
@@ -779,4 +827,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
