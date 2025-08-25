@@ -49,31 +49,34 @@ class AnomalyScoresManager:
         
         self.logger = logging.getLogger('anomaly_scores_manager')
     
-    def get_scores_path(self, model_type: str, config_name: str = 'exp2_deeper') -> Path:
+    def get_scores_path(self, model_type: str, config_name: str = 'exp2_deeper', 
+                       network_key: str = 'AEwRES') -> Path:
         """Get the path for anomaly scores file.
         
         Args:
             model_type: Type of model ('bass' or 'guitar')
             config_name: Name of experiment configuration
+            network_key: Network architecture key
             
         Returns:
             Path to the anomaly scores file
         """
-        # For now, keep simple naming without config subdirectories
-        # Can be enhanced later to support config-specific paths
-        return self.output_dir / f'anomaly_scores_{model_type}.pkl'
+        # Include network key in filename to support different networks
+        return self.output_dir / f'anomaly_scores_{model_type}_{network_key}.pkl'
     
-    def check_scores_exist(self, model_type: str, config_name: str = 'exp2_deeper') -> Tuple[bool, Optional[str]]:
+    def check_scores_exist(self, model_type: str, config_name: str = 'exp2_deeper',
+                          network_key: str = 'AEwRES') -> Tuple[bool, Optional[str]]:
         """Check if anomaly scores file exists and is valid.
         
         Args:
             model_type: Type of model ('bass' or 'guitar')
             config_name: Name of experiment configuration
+            network_key: Network architecture key
             
         Returns:
             Tuple of (exists: bool, error_message: Optional[str])
         """
-        scores_path = self.get_scores_path(model_type, config_name)
+        scores_path = self.get_scores_path(model_type, config_name, network_key)
         
         # Check if file exists
         if not scores_path.exists():
@@ -107,12 +110,14 @@ class AnomalyScoresManager:
         except Exception as e:
             return False, f"Error reading scores file: {str(e)}"
     
-    def validate_prerequisites(self, model_type: str, config_name: str) -> Tuple[bool, Optional[str]]:
+    def validate_prerequisites(self, model_type: str, config_name: str,
+                              network_key: str = 'AEwRES') -> Tuple[bool, Optional[str]]:
         """Validate that all prerequisites for computing scores exist.
         
         Args:
             model_type: Type of model ('bass' or 'guitar')
             config_name: Name of experiment configuration
+            network_key: Network architecture key
             
         Returns:
             Tuple of (valid: bool, error_message: Optional[str])
@@ -122,8 +127,10 @@ class AnomalyScoresManager:
             config = load_experiment_config(config_name)
             
             # Get model configuration - import dynamically to avoid circular imports
-            from music_anomalizer.scripts.compute_anomaly_scores import get_default_model_choices
-            model_choices = get_default_model_choices()
+            from music_anomalizer.scripts.compute_anomaly_scores import (
+                get_model_choices_from_config
+            )
+            model_choices = get_model_choices_from_config(config, network_key)
             
             if model_type not in model_choices:
                 return False, f"Unknown model type: {model_type}. Available: {list(model_choices.keys())}"
@@ -189,6 +196,7 @@ class AnomalyScoresManager:
         self,
         model_type: str,
         config_name: str = 'exp2_deeper',
+        network_key: str = 'AEwRES',
         progress_callback: Optional[Callable[[str, float], None]] = None,
         force_recompute: bool = False
     ) -> Tuple[bool, Optional[str]]:
@@ -197,6 +205,7 @@ class AnomalyScoresManager:
         Args:
             model_type: Type of model ('bass' or 'guitar')
             config_name: Name of experiment configuration
+            network_key: Network architecture key
             progress_callback: Optional callback for progress updates (message, progress_0_to_1)
             force_recompute: Force recomputation even if file exists
             
@@ -210,11 +219,11 @@ class AnomalyScoresManager:
                 progress_callback(message, progress)
         
         try:
-            scores_path = self.get_scores_path(model_type, config_name)
+            scores_path = self.get_scores_path(model_type, config_name, network_key)
             
             # Check if already exists and we're not forcing recompute
             if not force_recompute:
-                exists, error = self.check_scores_exist(model_type, config_name)
+                exists, error = self.check_scores_exist(model_type, config_name, network_key)
                 if exists:
                     update_progress(f"Scores already exist for {model_type}", 1.0)
                     return True, None
@@ -225,7 +234,7 @@ class AnomalyScoresManager:
 
             # Validate prerequisites
             update_progress("Validating prerequisites...", 0.2)
-            valid, error_msg = self.validate_prerequisites(model_type, config_name)
+            valid, error_msg = self.validate_prerequisites(model_type, config_name, network_key)
             if not valid:
                 return False, error_msg
 
@@ -248,6 +257,7 @@ class AnomalyScoresManager:
                 results = compute_anomaly_scores(
                     model_type=model_type,
                     config_name=config_name,
+                    network_key=network_key,
                     device=device_str,
                     output_path=scores_path
                 )
@@ -255,7 +265,7 @@ class AnomalyScoresManager:
                 update_progress("Validating computed scores...", 0.9)
 
                 # Validate the computed file
-                exists, error = self.check_scores_exist(model_type, config_name)
+                exists, error = self.check_scores_exist(model_type, config_name, network_key)
                 if not exists:
                     return False, (
                         f"Computation completed but file validation failed: "
@@ -281,6 +291,7 @@ class AnomalyScoresManager:
         self,
         model_type: str,
         config_name: str = 'exp2_deeper',
+        network_key: str = 'AEwRES',
         progress_callback: Optional[Callable[[str, float], None]] = None,
         force_recompute: bool = False
     ) -> Tuple[bool, Optional[str], Optional[Path]]:
@@ -289,6 +300,7 @@ class AnomalyScoresManager:
         Args:
             model_type: Type of model ('bass' or 'guitar')
             config_name: Name of experiment configuration
+            network_key: Network architecture key
             progress_callback: Optional callback for progress updates
             force_recompute: Force recomputation even if file exists
 
@@ -296,11 +308,11 @@ class AnomalyScoresManager:
             Tuple of (success: bool, error_message: Optional[str],
                      scores_path: Optional[Path])
         """
-        scores_path = self.get_scores_path(model_type, config_name)
+        scores_path = self.get_scores_path(model_type, config_name, network_key)
         
         # Check if scores already exist
         if not force_recompute:
-            exists, error = self.check_scores_exist(model_type, config_name)
+            exists, error = self.check_scores_exist(model_type, config_name, network_key)
             if exists:
                 if progress_callback:
                     progress_callback(
@@ -310,7 +322,7 @@ class AnomalyScoresManager:
 
         # Need to compute scores
         success, error = self.compute_missing_scores(
-            model_type, config_name, progress_callback, force_recompute
+            model_type, config_name, network_key, progress_callback, force_recompute
         )
         
         if success:
@@ -322,6 +334,7 @@ class AnomalyScoresManager:
         self,
         model_type: str,
         config_name: str = 'exp2_deeper',
+        network_key: str = 'AEwRES',
         auto_compute: bool = True,
         progress_callback: Optional[Callable[[str, float], None]] = None
     ) -> Tuple[Optional[List[Dict]], Optional[str]]:
@@ -330,6 +343,7 @@ class AnomalyScoresManager:
         Args:
             model_type: Type of model ('bass' or 'guitar')
             config_name: Name of experiment configuration
+            network_key: Network architecture key
             auto_compute: Whether to automatically compute missing scores
             progress_callback: Optional callback for progress updates
 
@@ -340,14 +354,14 @@ class AnomalyScoresManager:
         # Ensure scores exist
         if auto_compute:
             success, error, scores_path = self.ensure_scores_exist(
-                model_type, config_name, progress_callback
+                model_type, config_name, network_key, progress_callback
             )
             if not success:
                 return None, error
         else:
-            scores_path = self.get_scores_path(model_type, config_name)
+            scores_path = self.get_scores_path(model_type, config_name, network_key)
             exists, error = self.check_scores_exist(
-                model_type, config_name
+                model_type, config_name, network_key
             )
             if not exists:
                 return None, error
@@ -363,18 +377,20 @@ class AnomalyScoresManager:
     def get_scores_info(
         self,
         model_type: str,
-        config_name: str = 'exp2_deeper'
+        config_name: str = 'exp2_deeper',
+        network_key: str = 'AEwRES'
     ) -> Dict[str, Any]:
         """Get information about anomaly scores file.
 
         Args:
             model_type: Type of model ('bass' or 'guitar')
             config_name: Name of experiment configuration
+            network_key: Network architecture key
 
         Returns:
             Dictionary with file information
         """
-        scores_path = self.get_scores_path(model_type, config_name)
+        scores_path = self.get_scores_path(model_type, config_name, network_key)
         
         info = {
             'path': str(scores_path),
@@ -394,7 +410,7 @@ class AnomalyScoresManager:
                 info['last_modified'] = datetime.fromtimestamp(stat.st_mtime)
                 
                 # Check validity and count
-                valid, error = self.check_scores_exist(model_type, config_name)
+                valid, error = self.check_scores_exist(model_type, config_name, network_key)
                 info['valid'] = valid
                 info['error'] = error
 
