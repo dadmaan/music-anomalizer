@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import pickle
-from music_anomalizer.utils import load_pickle
+from music_anomalizer.utils import load_pickle, get_anomaly_scores_manager
 from music_anomalizer.config.loader import load_yaml_config
 
 # Paths (relative to this file - go up two levels: pages -> app -> root)
@@ -16,11 +16,33 @@ def get_config_path(config_name=DEFAULT_CONFIG):
     return os.path.join(BASE_DIR, 'configs', f'{config_name}.yaml')
 
 @st.cache_data
-def load_anomaly_scores(model_type):
-    """Load anomaly scores for a given model type."""
-    file_path = os.path.join(BASE_DIR, 'output', f'anomaly_scores_{model_type}.pkl')
-    with open(file_path, 'rb') as f:
-        scores = pickle.load(f)
+def load_anomaly_scores(model_type, config_name=DEFAULT_CONFIG):
+    """Load anomaly scores for a given model type, computing them if necessary."""
+    manager = get_anomaly_scores_manager()
+    
+    def progress_callback(message, progress):
+        # Use st.info to show progress messages in Streamlit
+        if hasattr(st, '_current_progress_bar') and st._current_progress_bar is not None:
+            st._current_progress_bar.progress(progress, text=message)
+        else:
+            # Fallback for when no progress bar is available
+            if progress < 1.0:
+                st.info(f"⏳ {message}")
+            else:
+                st.success(f"✅ {message}")
+    
+    # Try to load scores, auto-computing if missing
+    scores, error = manager.load_scores(
+        model_type=model_type,
+        config_name=config_name,
+        auto_compute=True,
+        progress_callback=progress_callback
+    )
+    
+    if error:
+        st.error(f"❌ Error loading anomaly scores: {error}")
+        return []
+    
     return scores
 
 def get_audio_file_path(relative_path):
@@ -32,8 +54,26 @@ def display_top_loops(model_type, config_name=DEFAULT_CONFIG):
     st.subheader(f"🎵 Top 3 'Normal' Training Loops ({model_type.capitalize()}) - {config_name}")
     st.write("These are the most typical examples from the training dataset (lowest anomaly scores). Listen to understand what the model considers 'normal' examples.")
     
+    # Check if scores need to be computed
+    manager = get_anomaly_scores_manager()
+    scores_exist, error = manager.check_scores_exist(model_type, config_name)
+    
+    if not scores_exist:
+        st.warning(f"⚠️ Anomaly scores for {model_type} model ({config_name}) not found. Computing them now...")
+        with st.spinner("Computing anomaly scores, this may take a few minutes..."):
+            # Create a progress bar
+            progress_bar = st.progress(0.0, text="Initializing...")
+            st._current_progress_bar = progress_bar
+            
+            try:
+                scores = load_anomaly_scores(model_type, config_name)
+                st._current_progress_bar = None  # Clean up
+            finally:
+                st._current_progress_bar = None  # Ensure cleanup
+    else:
+        scores = load_anomaly_scores(model_type, config_name)
+    
     try:
-        scores = load_anomaly_scores(model_type)
         top_n = scores[:3]
         
         # Display summary info
@@ -78,8 +118,26 @@ def display_last_loops(model_type, config_name=DEFAULT_CONFIG):
     st.subheader(f"🎵 Lowest 3 'Normal' Training Loops ({model_type.capitalize()}) - {config_name}")
     st.write("These are the least typical examples from the training dataset (highest anomaly scores). Listen to understand what the model considers 'anomaly' examples.")
     
+    # Check if scores need to be computed (should already be computed from display_top_loops)
+    manager = get_anomaly_scores_manager()
+    scores_exist, error = manager.check_scores_exist(model_type, config_name)
+    
+    if not scores_exist:
+        st.warning(f"⚠️ Anomaly scores for {model_type} model ({config_name}) not found. Computing them now...")
+        with st.spinner("Computing anomaly scores, this may take a few minutes..."):
+            # Create a progress bar
+            progress_bar = st.progress(0.0, text="Initializing...")
+            st._current_progress_bar = progress_bar
+            
+            try:
+                scores = load_anomaly_scores(model_type, config_name)
+                st._current_progress_bar = None  # Clean up
+            finally:
+                st._current_progress_bar = None  # Ensure cleanup
+    else:
+        scores = load_anomaly_scores(model_type, config_name)
+    
     try:
-        scores = load_anomaly_scores(model_type)
         last_n = scores[-3:]
         
         # Display summary info
@@ -134,6 +192,44 @@ def main():
     with col2:
         model = st.selectbox('🎸 Model type', options=['bass', 'guitar'], 
                             help="Choose the model trained on bass or guitar dataset")
+    
+    # Sidebar with additional controls
+    with st.sidebar:
+        st.header("🔧 Advanced Options")
+        
+        # Show current anomaly scores status
+        manager = get_anomaly_scores_manager()
+        scores_info = manager.get_scores_info(model, config_name)
+        
+        if scores_info['exists'] and scores_info['valid']:
+            st.success(f"✅ Anomaly scores loaded ({scores_info['num_scores']} samples)")
+            if scores_info['last_modified']:
+                st.caption(f"Last updated: {scores_info['last_modified'].strftime('%Y-%m-%d %H:%M')}")
+        else:
+            st.warning("⚠️ Anomaly scores need computation")
+        
+        # Force recompute button
+        if st.button("🔄 Recompute Anomaly Scores", 
+                    help="Force recomputation of anomaly scores (this may take several minutes)"):
+            with st.spinner("Recomputing anomaly scores..."):
+                progress_bar = st.progress(0.0, text="Initializing recomputation...")
+                st._current_progress_bar = progress_bar
+                
+                try:
+                    success, error = manager.compute_missing_scores(
+                        model_type=model,
+                        config_name=config_name,
+                        force_recompute=True
+                    )
+                    
+                    if success:
+                        st.success("✅ Anomaly scores recomputed successfully!")
+                        st.rerun()  # Refresh the page to show new scores
+                    else:
+                        st.error(f"❌ Failed to recompute scores: {error}")
+                        
+                finally:
+                    st._current_progress_bar = None
     
     # Display top and lowest 3 training examples
     display_top_loops(model, config_name)
