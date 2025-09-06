@@ -13,8 +13,16 @@ import logging
 import random
 import matplotlib.pyplot as plt
 from music_anomalizer.models.networks import load_AE_from_checkpoint
+from pathlib import Path
 import gc
 import seaborn as sns
+import hashlib
+import argparse
+import pytorch_lightning as pl
+from typing import Dict, Any, Optional, Tuple, List
+
+# Import anomaly scores manager
+from music_anomalizer.anomaly_scores_manager import AnomalyScoresManager, get_anomaly_scores_manager
 
 # MARK: General Utils
 def cleanup():
@@ -22,25 +30,38 @@ def cleanup():
     gc.collect()  # Force garbage collection
     
 def create_folder(fd):
-    try:
-        if not os.path.exists(fd):
-            os.makedirs(fd)
+    """Legacy wrapper for validate_directory_path - use validate_directory_path directly."""
+    is_valid, error_msg = validate_directory_path(fd, create_if_missing=True)
+    if not is_valid:
+        print(f"An unexpected error occurred: {error_msg}")
+    else:
+        if not Path(fd).exists():
             print(f"Created new directory at {fd}.")
         else:
-            print("Path already exists.")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}") 
+            print("Path already exists.") 
 
-def load_json(file_path):
+def load_json(file_path, as_dataframe=False):
     """
     Loads a JSON file from the specified path.
 
     :param file_path: Path to the JSON file.
-    :return: Parsed JSON data as a Python dictionary.
+    :param as_dataframe: If True, returns flattened data as pandas DataFrame.
+    :return: Parsed JSON data as a Python dictionary or DataFrame.
     """
     try:
         with open(file_path, 'r') as file:
             data = json.load(file)
+        
+        if as_dataframe:
+            # Flatten the data structure for DataFrame
+            flat_data = []
+            for item in data:
+                for key, value in item.items():
+                    value['hash'] = key  # Optionally add the hash as a column
+                    flat_data.append(value)
+            
+            return pd.DataFrame(flat_data)
+        
         return data
     except FileNotFoundError:
         print(f"Error: File not found at {file_path}")
@@ -57,28 +78,6 @@ def write_to_json(data, json_file_path):
     except Exception as e:
         print(f"Failed to update JSON file: {e}")
 
-def load_json_to_dataframe(file_path):
-    """
-    Loads JSON data from the specified file path into a pandas DataFrame.
-    
-    :param file_path: Path to the JSON file.
-    :return: A pandas DataFrame containing the loaded data.
-    """
-    # Load the JSON data from the file
-    with open(file_path, 'r') as file:
-        data = json.load(file)
-    
-    # Flatten the data structure
-    flat_data = []
-    for item in data:
-        for key, value in item.items():
-            value['hash'] = key  # Optionally add the hash as a column
-            flat_data.append(value)
-    
-    # Create a DataFrame from the flattened data
-    df = pd.DataFrame(flat_data)
-    
-    return df
 
 
 def load_pickle(file_path):
@@ -136,14 +135,6 @@ def move_and_rename_files(file_paths, destination_dir, new_names=False):
         print(f"An error occurred: {e}")
 
 
-def seed_everything(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
 
 class StatisticsContainer(object):
     def __init__(self, statistics_path):
@@ -483,6 +474,225 @@ def plot_score_distributions(scores_train, scores_valid, threshold, title, ax, k
     ax.set_title(title, fontsize=fontsize)
     ax.legend()
     
+# MARK: Common Script Utilities
+def setup_logging(log_level: str = "INFO"):
+    """Configure logging with timestamps and proper formatting.
+    
+    Args:
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
+    
+    Returns:
+        Configured logger instance
+    """
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper()),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    logger = logging.getLogger('music_anomalizer')
+    return logger
+
+
+def initialize_device(device_override: Optional[str] = None) -> torch.device:
+    """Initialize compute device with validation and fallback.
+    
+    Args:
+        device_override: Override device selection ('auto', 'cpu', 'cuda')
+    
+    Returns:
+        Validated torch device
+    """
+    logger = logging.getLogger('music_anomalizer')
+    
+    if device_override == 'cpu':
+        device = torch.device('cpu')
+        logger.info("Using CPU (forced)")
+    elif device_override == 'cuda':
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+            logger.info(f"Using CUDA: {torch.cuda.get_device_name()}")
+        else:
+            device = torch.device('cpu')
+            logger.warning("CUDA requested but not available, falling back to CPU")
+    else:
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+            logger.info(f"Auto-selected CUDA: {torch.cuda.get_device_name()}")
+        else:
+            device = torch.device('cpu')
+            logger.info("Auto-selected CPU (CUDA not available)")
+    
+    return device
+
+
+def set_deterministic_behavior():
+    """Set deterministic behavior for reproducibility."""
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    torch.set_float32_matmul_precision('medium')
+    random_seed = 0
+    pl.seed_everything(random_seed)
+
+
+def set_random_seeds(seed: int = 0) -> int:
+    """Set random seeds for reproducibility across all libraries.
+    
+    Args:
+        seed (int): Random seed value
+        
+    Returns:
+        int: The seed value used
+    """
+    logger = logging.getLogger('music_anomalizer')
+    pl.seed_everything(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    logger.info(f"Random seed set to {seed} for reproducibility")
+    return seed
+
+def validate_dataset(dataset_path: str, dataset_index_path: str = None, load_data: bool = False) -> Tuple[bool, str, Any]:
+    """Validate dataset files exist and optionally load data.
+    
+    Args:
+        dataset_path: Path to dataset pickle file
+        dataset_index_path: Optional path to dataset index pickle file
+        load_data: If True, loads and validates the dataset content
+    
+    Returns:
+        Tuple of (is_valid, error_message, loaded_data)
+    """
+    logger = logging.getLogger('music_anomalizer')
+    
+    # Convert to Path objects for consistency
+    dataset_path_obj = Path(dataset_path) if isinstance(dataset_path, str) else dataset_path
+    
+    if not dataset_path_obj.exists():
+        return False, f"Dataset file not found: {dataset_path}", None
+    
+    if dataset_index_path:
+        index_path_obj = Path(dataset_index_path) if isinstance(dataset_index_path, str) else dataset_index_path
+        if not index_path_obj.exists():
+            return False, f"Dataset index file not found: {dataset_index_path}", None
+    
+    try:
+        # Check file sizes
+        dataset_size = dataset_path_obj.stat().st_size / (1024 * 1024)  # MB
+        logger.debug(f"Dataset file size: {dataset_size:.1f} MB")
+        
+        if dataset_size < 0.1:  # Less than 0.1 MB is suspicious
+            return False, f"Dataset file seems too small: {dataset_size:.1f} MB", None
+        
+        if dataset_size == 0:
+            return False, f"Dataset file is empty: {dataset_path}", None
+            
+        # Optionally load and validate data
+        if load_data:
+            data = load_pickle(str(dataset_path_obj))
+            if data is None:
+                return False, f"Dataset loaded as None: {dataset_path}", None
+            
+            if hasattr(data, '__len__') and len(data) == 0:
+                return False, f"Dataset is empty: {dataset_path}", None
+                
+            logger.info(f"Dataset loaded: {len(data) if hasattr(data, '__len__') else 'unknown'} samples ({dataset_size:.1f} MB)")
+            return True, "", data
+            
+        return True, "", None
+        
+    except Exception as e:
+        return False, f"Error validating dataset files: {e}", None
+        
+
+
+
+def generate_md5_hash(text: str, length: int = 32) -> str:
+    """Generate a shorter hash using MD5.
+    
+    Args:
+        text (str): Text to hash
+        length (int): Length of hash to return
+        
+    Returns:
+        str: MD5 hash truncated to specified length
+    """
+    hash_object = hashlib.md5(text.encode())
+    return hash_object.hexdigest()[:length]
+
+
+def create_standard_argument_parser(
+    description: str,
+    epilog: str = None,
+    add_common_args: bool = True
+) -> argparse.ArgumentParser:
+    """Create a standard argument parser with common options.
+    
+    Args:
+        description (str): Description for the parser
+        epilog (str): Epilog text for examples
+        add_common_args (bool): Whether to add common arguments
+        
+    Returns:
+        argparse.ArgumentParser: Configured argument parser
+    """
+    parser = argparse.ArgumentParser(
+        description=description,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=epilog
+    )
+    
+    if add_common_args:
+        parser.add_argument(
+            '--device',
+            choices=['auto', 'cpu', 'cuda'],
+            default='auto',
+            help='Device to use for processing (default: auto)'
+        )
+        
+        parser.add_argument(
+            '--log-level',
+            choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+            default='INFO',
+            help='Logging level (default: INFO)'
+        )
+        
+        parser.add_argument(
+            '--dry-run',
+            action='store_true',
+            help='Validate configuration without processing'
+        )
+    
+    return parser
+
+
+def display_execution_summary(stats: Dict[str, Any]) -> None:
+    """Display comprehensive execution summary.
+    
+    Args:
+        stats: Processing statistics dictionary
+    """
+    logger = logging.getLogger('music_anomalizer')
+    
+    logger.info("\n" + "="*60)
+    logger.info(" EXECUTION SUMMARY")
+    logger.info("="*60)
+    
+    for key, value in stats.items():
+        if isinstance(value, (int, float)):
+            if 'rate' in key.lower() or 'percentage' in key.lower():
+                logger.info(f" {key.replace('_', ' ').title()}: {value:.1f}%")
+            else:
+                logger.info(f" {key.replace('_', ' ').title()}: {value}")
+        else:
+            logger.info(f" {key.replace('_', ' ').title()}: {value}")
+    
+    logger.info("="*60)
+
+
 def box_plot_anomaly_scores(data_train, data_valid, dataset_name, ax, title=None):
     """
     Plots the anomaly scores for training and validation examples in a single boxplot with a logarithmic scale.
@@ -518,3 +728,84 @@ def box_plot_anomaly_scores(data_train, data_valid, dataset_name, ax, title=None
     ax.set_xlabel('Anomaly Score (log scale)', fontsize=10)
     ax.set_title(title or 'Comparison of Anomaly Scores', fontsize=10)
     ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+
+
+# MARK: Validation and Error Handling Utilities
+def validate_file_path(file_path: str, file_type: str = "file") -> Tuple[bool, str]:
+    """Validate that a file path exists and is accessible.
+    
+    Args:
+        file_path (str): Path to validate
+        file_type (str): Type of file for error messages
+        
+    Returns:
+        Tuple[bool, str]: (is_valid, error_message)
+    """
+    if not file_path:
+        return False, f"{file_type.capitalize()} path is empty"
+    
+    path_obj = Path(file_path)
+    if not path_obj.exists():
+        return False, f"{file_type.capitalize()} not found: {file_path}"
+    
+    if not path_obj.is_file():
+        return False, f"{file_type.capitalize()} path is not a file: {file_path}"
+    
+    # Check file size for basic validation
+    file_size = path_obj.stat().st_size
+    if file_size == 0:
+        return False, f"{file_type.capitalize()} is empty: {file_path}"
+    
+    return True, ""
+
+
+def validate_directory_path(dir_path: str, create_if_missing: bool = False) -> Tuple[bool, str]:
+    """Validate that a directory path exists and is accessible.
+    
+    Args:
+        dir_path (str): Directory path to validate
+        create_if_missing (bool): Create directory if it doesn't exist
+        
+    Returns:
+        Tuple[bool, str]: (is_valid, error_message)
+    """
+    if not dir_path:
+        return False, "Directory path is empty"
+    
+    path_obj = Path(dir_path)
+    
+    if not path_obj.exists():
+        if create_if_missing:
+            try:
+                path_obj.mkdir(parents=True, exist_ok=True)
+                return True, ""
+            except Exception as e:
+                return False, f"Could not create directory {dir_path}: {e}"
+        else:
+            return False, f"Directory not found: {dir_path}"
+    
+    if not path_obj.is_dir():
+        return False, f"Path is not a directory: {dir_path}"
+    
+    return True, ""
+
+
+def safe_file_operation(operation_func, *args, **kwargs):
+    """Safely execute a file operation with error handling.
+    
+    Args:
+        operation_func: Function to execute
+        *args: Arguments for the function
+        **kwargs: Keyword arguments for the function
+        
+    Returns:
+        Result of operation or None if failed
+    """
+    logger = logging.getLogger('music_anomalizer')
+    
+    try:
+        return operation_func(*args, **kwargs)
+    except Exception as e:
+        logger.error(f"File operation failed: {e}")
+        return None
+

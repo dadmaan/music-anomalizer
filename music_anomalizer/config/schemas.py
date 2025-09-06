@@ -85,6 +85,15 @@ class CheckpointPaths(BaseModel):
     svdd_checkpoint: Optional[str] = Field(None, description="Deep SVDD checkpoint path")
 
 
+class CheckpointConfig(BaseModel):
+    """Checkpoint configuration with experiment discovery and manual paths."""
+    experiment_name: Optional[str] = Field(None, description="Experiment name for automatic checkpoint discovery")
+    manual_paths: Optional[Dict[str, str]] = Field(None, description="Manual checkpoint path specifications")
+    
+    class Config:
+        extra = "allow"  # Allow additional dynamic checkpoint fields
+
+
 class ExperimentConfig(BaseModel):
     """Main experiment configuration."""
     config_name: str = Field(..., description="Experiment configuration name")
@@ -94,7 +103,7 @@ class ExperimentConfig(BaseModel):
     dataset_paths: Dict[str, str] = Field(..., description="Dataset file paths")
     audio_preprocessing: Optional[AudioPreprocessingConfig] = Field(None, description="Audio preprocessing config")
     threshold: Optional[Dict[str, float]] = Field(None, description="Pre-computed thresholds")
-    checkpoints: Optional[Dict[str, CheckpointPaths]] = Field(None, description="Model checkpoint paths")
+    checkpoints: Optional[CheckpointConfig] = Field(None, description="Model checkpoint configuration")
     
     class Config:
         extra = "allow"  # Allow additional fields like threshold values

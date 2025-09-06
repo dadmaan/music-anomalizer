@@ -9,7 +9,7 @@ import wandb
 
 from music_anomalizer.models.networks import create_network, SVDD
 from music_anomalizer.data.data_loader import DataHandler
-from music_anomalizer.utils import get_z_vector, write_to_json, load_pickle
+from music_anomalizer.utils import get_z_vector, write_to_json, load_pickle, set_random_seeds
 
 # set deterministic behavior for pl
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"  # or ":16:8"
@@ -17,7 +17,7 @@ os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"  # or ":16:8"
 torch.set_float32_matmul_precision('medium') # set it to 'high' for higher precision
     
 # init seed
-pl.seed_everything(1234)
+set_random_seeds(1234)
 
 
 class DeepSVDDTrainer:
@@ -117,12 +117,23 @@ class DeepSVDDTrainer:
         self.best_model_path[f"{name}-DSVDD"] = callbacks[0].best_model_path
 
     def setup_callbacks(self, name, model_type, patience):
-        checkpoint_callback = ModelCheckpoint(monitor='val_loss', filename=f'{name}-{model_type}-{{epoch:02d}}-{{val_loss:.2f}}')
+        # Create wandb checkpoint directory
+        checkpoint_dir = f"./wandb/checkpoints/{name}"
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        
+        checkpoint_callback = ModelCheckpoint(
+            dirpath=checkpoint_dir,
+            monitor='val_loss', 
+            filename=f'{name}-{model_type}-{{epoch:02d}}-{{val_loss:.2f}}'
+        )
         early_stopping_callback = EarlyStopping(monitor='val_loss', patience=patience, verbose=False, mode='min')
         lr_monitor_callback = LearningRateMonitor(logging_interval='step')
         return [checkpoint_callback, early_stopping_callback, lr_monitor_callback]
 
     def setup_logger(self, name, model_type):
+        if self.wandb_project_name is None:
+            # Wandb is disabled, return None (PyTorch Lightning will use default logger)
+            return None
         return WandbLogger(log_model=self.wandb_log_model, 
                            project=self.wandb_project_name if self.wandb_project_name else name, 
                            name=f"{name}-{model_type}")
@@ -133,7 +144,7 @@ class DeepSVDDTrainer:
             max_epochs=max_epochs,
             min_epochs=min_epochs,
             deterministic=self.deterministic,
-            default_root_dir='./model',
+            default_root_dir='./wandb',
             callbacks=callbacks,
             logger=logger,
             enable_progress_bar=self.enable_progress_bar

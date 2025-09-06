@@ -2,8 +2,10 @@ import laion_clap
 import torch
 import logging
 import torch
-# from modules.clap_audio_tagging import load_audio, get_audio_branch  # TODO: This module doesn't exist in new structure
-from music_anomalizer.preprocessing.extract_embed import get_features, prepare_input_dict, prepare_audio_as_tensor
+from music_anomalizer.preprocessing.extract_embed import (
+    get_features, prepare_input_dict, prepare_audio_as_tensor, 
+    get_audio_branch, load_audio
+)
 
 class Wav2Embedding:
     """

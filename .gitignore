@@ -10,6 +10,8 @@ __pycache__/
 
 data/
 checkpoints/
+wandb/
+.pkl
 # Distribution / packaging
 .Python
 build/
@@ -177,12 +179,12 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# Weights & Biases
-wandb/
-*.wandb
-wandb-metadata.json
-wandb-summary.json
-wandb_sweep_results_*.csv
+# Aider AI coding assistant files
+.aider*
+aider.model.settings.yml
+AIDER_SETUP.md
 
-.cloud/
-*.cloud
+# Claude Code files
+CLAUDE.md
+.claude
+.clineignore

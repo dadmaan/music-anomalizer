@@ -26,8 +26,8 @@ trainer:
 
 # Multi-instrument dataset paths
 dataset_paths:
-  HTSAT_base_musicradar_bass: "./data/pickle/embedding/musicradar/HTSAT-base_musicradar_bass_embeddings.pkl"
-  HTSAT_base_musicradar_guitar: "./data/pickle/embedding/musicradar/HTSAT-base_musicradar_guitar_embeddings.pkl"
+  HTSAT_base_musicradar_bass: "data/pickle/embedding/musicradar/HTSAT-base_musicradar_bass_embeddings.pkl"
+  HTSAT_base_musicradar_guitar: "data/pickle/embedding/musicradar/HTSAT-base_musicradar_guitar_embeddings.pkl"
 
 # Pre-computed thresholds from validation data
 # These thresholds were determined through statistical analysis of training distributions
@@ -45,7 +45,12 @@ checkpoints:
   
   # Optional: Manual specification for specific use cases
   manual_paths:
-    AEwRES_bass_ae: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_bass-AE-epoch=149-val_loss=0.01.ckpt"
-    AEwRES_bass_svdd: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_bass-DSVDD-epoch=132-val_loss=0.00.ckpt"
-    AEwRES_guitar_ae: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_guitar-AE-epoch=153-val_loss=0.01.ckpt"
-    AEwRES_guitar_svdd: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_guitar-DSVDD-epoch=34-val_loss=0.01.ckpt"
+    AEwRES_bass_ae: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_bass-AE-epoch=203-val_loss=0.01.ckpt"
+    AEwRES_bass_svdd: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_bass-DSVDD-epoch=88-val_loss=0.00.ckpt"
+    AEwRES_guitar_ae: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_guitar-AE-epoch=102-val_loss=0.01.ckpt"
+    AEwRES_guitar_svdd: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_guitar-DSVDD-epoch=101-val_loss=0.00.ckpt"
+    
+    AE_bass_ae: "checkpoints/loop_benchmark/EXP2_DEEPER/AE/AE-HTSAT_base_musicradar_bass-AE-epoch=103-val_loss=0.02.ckpt"
+    AE_bass_svdd: "checkpoints/loop_benchmark/EXP2_DEEPER/AE/AE-HTSAT_base_musicradar_bass-DSVDD-epoch=118-val_loss=0.00.ckpt"
+    AE_guitar_ae: "checkpoints/loop_benchmark/EXP2_DEEPER/AE/AE-HTSAT_base_musicradar_guitar-AE-epoch=78-val_loss=0.03.ckpt"
+    AE_guitar_svdd: "checkpoints/loop_benchmark/EXP2_DEEPER/AE/AE-HTSAT_base_musicradar_guitar-DSVDD-epoch=225-val_loss=0.00.ckpt"

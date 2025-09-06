@@ -69,3 +69,4 @@ checkpoints/**/*.pth
 
 # Test files
 test_wav/
+.clineignore

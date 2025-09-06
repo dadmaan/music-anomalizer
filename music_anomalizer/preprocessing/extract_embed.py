@@ -1,5 +1,6 @@
 
 import numpy as np
+import librosa
 import torch
 import torch.nn.functional as F
 import torchvision.transforms
@@ -13,6 +14,23 @@ def int16_to_float32(x):
 def float32_to_int16(x):
     x = np.clip(x, a_min=-1., a_max=1.)
     return (x * 32767.).astype(np.int16)
+
+def get_audio_branch(model, module_name='model.audio_branch'):
+    "Retrieve specific module from loaded CLAP model."
+    for name, module in model.named_modules():
+        if name == module_name:
+            print("Audio Branch Module found.")
+            return module
+    else:
+        print("Audio Branch Module not found.")
+        return None
+
+def load_audio(audio_path, sample_rate=48000, expand_dim=False):
+    audio_data, _ = librosa.load(audio_path, sr=sample_rate)
+    if expand_dim:
+        audio_data = audio_data.reshape(1, -1) # Make it (1,T) or (N,T)
+    return audio_data
+
 
 def get_mel(audio_data, audio_cfg):
     # mel shape: (n_mels, T)
