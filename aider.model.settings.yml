@@ -1,6 +1,0 @@
-- name: openrouter/qwen/qwen3-coder:free
-  edit_format: diff
-  weak_model_name: openrouter/qwen/qwen3-coder:free
-  use_repo_map: true
-  editor_model_name: openrouter/qwen/qwen3-coder:free
-  editor_edit_format: editor-diff

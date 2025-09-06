@@ -188,3 +188,7 @@ AIDER_SETUP.md
 CLAUDE.md
 .claude
 .clineignore
+
+
+# Devcontainer
+.devcontainer
