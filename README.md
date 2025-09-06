@@ -14,13 +14,14 @@ This project implements a **Deep Support Vector Data Description (Deep SVDD)** f
 - **🧠 Multiple Neural Architectures**: AutoEncoders with residual connections, compact architectures, and baseline models
 - **🎵 Audio Processing Pipeline**: Complete WAV preprocessing with CLAP embeddings and feature extraction
 - **📊 Interactive Web Interface**: Streamlit-based application for real-time audio analysis
-- **⚡ High-Performance Training**: PyTorch Lightning integration with WandB logging
+- **⚡ Training**: PyTorch Lightning integration with WandB logging
 - **🔧 Flexible Configuration**: YAML-based experiment configuration system
 
 ## 📋 Table of Contents
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Documentation](#documentation)
 - [Model Architecture](#model-architecture)
 - [Usage](#usage)
 - [Dataset Requirements](#dataset-requirements)
@@ -108,6 +109,44 @@ python music_anomalizer/scripts/compute_anomaly_scores.py \
 # Start the Streamlit app
 streamlit run app/pages/Home.py
 ```
+
+## 📚 Documentation
+
+Comprehensive documentation is available for different audiences:
+
+### 📖 User Guide
+For users who want to use the system for anomaly detection in audio files:
+- [User Guide](docs/USER_GUIDE.md) - Complete instructions for using the system
+- Quick start with Docker
+- Web interface usage
+- Command-line tools
+- Configuration system
+- Troubleshooting
+
+### 👨‍💻 Developer Guide
+For developers who want to contribute to the project or understand its internals:
+- [Developer Guide](docs/DEVELOPER_GUIDE.md) - Code structure and contribution guidelines
+- Project architecture
+- Development setup
+- Testing procedures
+- Code style guidelines
+
+### 🔧 Technical Reference
+For those interested in the technical implementation details:
+- [Technical Reference](docs/TECHNICAL_REFERENCE.md) - In-depth technical documentation
+- Model architectures
+- Training process
+- Anomaly detection algorithms
+- Data processing pipeline
+- Configuration reference
+
+### ☁️ Deployment Guide
+For system administrators and DevOps engineers:
+- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) - Deployment and operations documentation
+- Docker setup (production and development)
+- Cloud deployment (AWS, GCP, Azure)
+- Performance optimization
+- Monitoring and maintenance
 
 ## 🏗️ Model Architecture
 
@@ -277,7 +316,7 @@ python music_anomalizer/scripts/train_models.py --config configs/exp2_deeper.yam
 | `AE` | Standard AutoEncoder | Baseline experiments |
 | `AEwRES` | AutoEncoder with Residual | Complex patterns |
 | `CompactAE` | Lightweight AutoEncoder | Fast inference |
-| `DeepAE` | Deep AutoEncoder | High-capacity learning |
+| `DeepAE` | Deep AutoEncoder | Higher-capacity learning |
 | `Baseline` | Simple baseline model | Comparison studies |
 
 ### Hyperparameter Tuning
@@ -292,7 +331,7 @@ python music_anomalizer/scripts/hp_tuning_loop_detection.py \
 
 ## 🌐 Web Interface
 
-The project includes a Streamlit-based web application for interactive analysis:
+The project includes a Streamlit-based web application for basic interactive analysis:
 
 ### Features
 - **🎵 Audio Upload**: Drag-and-drop interface for audio files
@@ -423,11 +462,14 @@ mypy music_anomalizer/
 If you use this code in your research, please cite:
 
 ```bibtex
-@article{music_anomalizer_2024,
-    title={Learning Normal Patterns in Musical Samples: Unsupervised Anomaly Detection for Variable-Length Audio Inputs},
-    author={Music Anomalizer Team},
-    journal={},
-    year={2024},
+@misc{dadman2025learningnormalpatternsmusical,
+    title={Learning Normal Patterns in Musical Loops}, 
+    author={Shayan Dadman and Bernt Arild Bremdal and Børre Bang and Rune Dalmo},
+    year={2025},
+    eprint={2505.23784},
+    archivePrefix={arXiv},
+    primaryClass={cs.SD},
+    url={https://arxiv.org/abs/2505.23784},
     note={Code available at: https://github.com/your-username/music-anomalizer}
 }
 ```
@@ -436,12 +478,6 @@ If you use this code in your research, please cite:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-- PyTorch Lightning team for the excellent deep learning framework
-- LAION team for the CLAP model
-- MusicRadar for providing audio loop datasets
-- The research community for Deep SVDD innovations
 
 ---
 
