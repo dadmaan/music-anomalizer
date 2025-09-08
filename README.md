@@ -1,4 +1,4 @@
-# Music Anomalizer 🎵
+# Music Anomalizer
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch Lightning](https://img.shields.io/badge/PyTorch%20Lightning-2.0+-orange.svg)](https://lightning.ai/)
@@ -392,5 +392,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **🎵 Happy anomaly detecting! 🎵**
+
 
 
