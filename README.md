@@ -6,13 +6,13 @@
 
 Code implementation and supplementary materials for the paper **"Learning Normal Patterns in Musical Samples: Unsupervised Anomaly Detection for Variable-Length Audio Inputs"**.
 
-This project implements a **Deep Support Vector Data Description (Deep SVDD)** framework for detecting anomalies in musical audio loops, enabling identification of musical patterns that deviate from normal training data.
+This project implements a **Deep Support Vector Data Description (Deep SVDD)** framework for identification of musical patterns that deviate from normal patterns within training data.
 
 ## 🚀 Key Features
 
 - **🎯 Unsupervised Anomaly Detection**: Deep SVDD-based models for musical audio loop analysis
 - **🧠 Multiple Neural Architectures**: AutoEncoders with residual connections, compact architectures, and baseline models
-- **🎵 Audio Processing Pipeline**: Complete WAV preprocessing with CLAP embeddings and feature extraction
+- **🎵 Audio Processing Pipeline**: Complete WAV preprocessing with HTSAT embeddings and feature extraction
 - **📊 Interactive Web Interface**: Streamlit-based application for real-time audio analysis
 - **⚡ Training**: PyTorch Lightning integration with WandB logging
 - **🔧 Flexible Configuration**: YAML-based experiment configuration system
@@ -53,8 +53,6 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # Install the package and dependencies
 pip install -e .
 
-# Install development dependencies (optional)
-pip install -e ".[dev]"
 ```
 
 ### Docker Installation
@@ -112,67 +110,7 @@ streamlit run app/pages/Home.py
 
 ## 📚 Documentation
 
-Comprehensive documentation is available for different audiences:
-
-### 📖 User Guide
-For users who want to use the system for anomaly detection in audio files:
-- [User Guide](docs/USER_GUIDE.md) - Complete instructions for using the system
-- Quick start with Docker
-- Web interface usage
-- Command-line tools
-- Configuration system
-- Troubleshooting
-
-### 👨‍💻 Developer Guide
-For developers who want to contribute to the project or understand its internals:
-- [Developer Guide](docs/DEVELOPER_GUIDE.md) - Code structure and contribution guidelines
-- Project architecture
-- Development setup
-- Testing procedures
-- Code style guidelines
-
-### 🔧 Technical Reference
-For those interested in the technical implementation details:
-- [Technical Reference](docs/TECHNICAL_REFERENCE.md) - In-depth technical documentation
-- Model architectures
-- Training process
-- Anomaly detection algorithms
-- Data processing pipeline
-- Configuration reference
-
-### ☁️ Deployment Guide
-For system administrators and DevOps engineers:
-- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) - Deployment and operations documentation
-- Docker setup (production and development)
-- Cloud deployment (AWS, GCP, Azure)
-- Performance optimization
-- Monitoring and maintenance
-
-## 🏗️ Model Architecture
-
-The Music Anomalizer implements several neural network architectures within the Deep SVDD framework:
-
-### Core Models
-
-#### **AutoEncoder (AE)**
-- **Purpose**: Basic reconstruction-based anomaly detection
-- **Architecture**: Encoder-decoder with configurable hidden dimensions
-- **Usage**: Good baseline for simple audio patterns
-
-#### **AutoEncoder with Residual Connections (AEwRES)**
-- **Purpose**: Enhanced feature learning with residual connections
-- **Architecture**: Skip connections preserve information flow
-- **Usage**: Better performance on complex musical patterns
-
-#### **Compact AutoEncoder (CompactAE)**
-- **Purpose**: Lightweight model for resource-constrained environments
-- **Architecture**: Reduced parameters while maintaining effectiveness
-- **Usage**: Fast inference and mobile deployment
-
-#### **Deep SVDD Network**
-- **Purpose**: One-class classification for anomaly detection
-- **Architecture**: Maps audio features to hypersphere representation
-- **Usage**: Core anomaly scoring mechanism
+Find relevant documentations in `docs/` directory.
 
 ### Audio Processing Pipeline
 
@@ -181,7 +119,7 @@ WAV Files → Feature Extraction → CLAP Embeddings → Deep SVDD → Anomaly S
 ```
 
 1. **Audio Preprocessing**: Normalize, resample, and segment audio
-2. **Feature Extraction**: CLAP (Contrastive Language-Audio Pre-training) embeddings
+2. **Feature Extraction**: HTSAT embeddings
 3. **Deep SVDD Training**: Learn normal pattern representations
 4. **Anomaly Detection**: Compute distances from learned center
 
@@ -315,8 +253,6 @@ python music_anomalizer/scripts/train_models.py --config configs/exp2_deeper.yam
 |---------|-------------|----------|
 | `AE` | Standard AutoEncoder | Baseline experiments |
 | `AEwRES` | AutoEncoder with Residual | Complex patterns |
-| `CompactAE` | Lightweight AutoEncoder | Fast inference |
-| `DeepAE` | Deep AutoEncoder | Higher-capacity learning |
 | `Baseline` | Simple baseline model | Comparison studies |
 
 ### Hyperparameter Tuning
@@ -337,7 +273,6 @@ The project includes a Streamlit-based web application for basic interactive ana
 - **🎵 Audio Upload**: Drag-and-drop interface for audio files
 - **📊 Real-time Analysis**: Instant anomaly score computation
 - **📈 Visualization**: Interactive plots and spectrograms
-- **🔍 Model Comparison**: Compare different trained models
 
 ### Launching the App
 
@@ -430,33 +365,6 @@ music-anomalizer/
 └── 📄 README.md                 # This file
 ```
 
-## 🤝 Contributing
-
-We welcome contributions! Please follow these steps:
-
-1. **Fork** the repository
-2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
-3. **Commit** your changes: `git commit -m 'Add amazing feature'`
-4. **Push** to the branch: `git push origin feature/amazing-feature`
-5. **Open** a Pull Request
-
-### Development Setup
-
-```bash
-# Install development dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Format code
-black music_anomalizer/
-isort music_anomalizer/
-
-# Type checking
-mypy music_anomalizer/
-```
-
 ## 📄 Citation
 
 If you use this code in your research, please cite:
@@ -482,3 +390,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **🎵 Happy anomaly detecting! 🎵**
+
