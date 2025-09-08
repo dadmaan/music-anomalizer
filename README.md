@@ -20,6 +20,7 @@ This project implements a **Deep Support Vector Data Description (Deep SVDD)** f
 ## 📋 Table of Contents
 
 - [Installation](#installation)
+- [Project Structure](#project-structure)
 - [Quick Start](#quick-start)
 - [Documentation](#documentation)
 - [Model Architecture](#model-architecture)
@@ -28,7 +29,6 @@ This project implements a **Deep Support Vector Data Description (Deep SVDD)** f
 - [Training](#training)
 - [Web Interface](#web-interface)
 - [Configuration](#configuration)
-- [Project Structure](#project-structure)
 - [Citation](#citation)
 
 ## 🛠️ Installation
@@ -63,6 +63,33 @@ docker-compose build
 # Run the application
 docker-compose up
 ```
+
+
+## 📁 Project Structure
+
+```
+music-anomalizer/
+├── 📁 music_anomalizer/          # Main package
+│   ├── 📁 models/                # Neural network models
+│   │   ├── networks.py           # AutoEncoder architectures
+│   │   ├── deepSVDD.py          # Deep SVDD trainer
+│   │   ├── anomaly_detector.py   # High-level detection interface
+│   │   └── layers.py             # Custom neural network layers
+│   ├── 📁 preprocessing/         # Data preprocessing
+│   │   ├── extract_embed.py      # Feature extraction
+│   │   └── wav2embed.py          # Audio-to-embedding conversion
+│   ├── 📁 data/                  # Data loading utilities
+│   ├── 📁 config/               # Configuration management
+│   ├── 📁 scripts/              # Training and evaluation scripts
+│   └── 📁 visualization/        # Plotting and analysis tools
+├── 📁 app/                      # Streamlit web interface
+│   └── 📁 pages/                # Web app pages
+├── 📁 configs/                  # YAML configuration files
+├── 📄 train.py                  # Simple training script
+├── 📄 prepare_data.py           # Data preparation utilities
+└── 📄 README.md                 # This file
+```
+
 
 ## 🚀 Quick Start
 
@@ -342,31 +369,6 @@ networks:
     hidden_dims: [1024, 512, 256, 128]
 ```
 
-## 📁 Project Structure
-
-```
-music-anomalizer/
-├── 📁 music_anomalizer/          # Main package
-│   ├── 📁 models/                # Neural network models
-│   │   ├── networks.py           # AutoEncoder architectures
-│   │   ├── deepSVDD.py          # Deep SVDD trainer
-│   │   ├── anomaly_detector.py   # High-level detection interface
-│   │   └── layers.py             # Custom neural network layers
-│   ├── 📁 preprocessing/         # Data preprocessing
-│   │   ├── extract_embed.py      # Feature extraction
-│   │   └── wav2embed.py          # Audio-to-embedding conversion
-│   ├── 📁 data/                  # Data loading utilities
-│   ├── 📁 config/               # Configuration management
-│   ├── 📁 scripts/              # Training and evaluation scripts
-│   └── 📁 visualization/        # Plotting and analysis tools
-├── 📁 app/                      # Streamlit web interface
-│   └── 📁 pages/                # Web app pages
-├── 📁 configs/                  # YAML configuration files
-├── 📄 train.py                  # Simple training script
-├── 📄 prepare_data.py           # Data preparation utilities
-└── 📄 README.md                 # This file
-```
-
 ## 📄 Citation
 
 If you use this code in your research, please cite:
@@ -392,6 +394,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **🎵 Happy anomaly detecting! 🎵**
+
 
 
 
