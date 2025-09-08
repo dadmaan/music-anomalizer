@@ -123,15 +123,7 @@ def training_step(self, batch, batch_idx):
     return loss
 ```
 
-### Network Variants
 
-Five network architectures are available:
-
-1. **AE**: Standard AutoEncoder with regularization
-2. **AEwRES**: AutoEncoder with residual connections
-3. **Baseline**: AutoEncoder without regularization
-4. **DeepAE**: Deep 5-layer AutoEncoder
-5. **CompactAE**: Compact 2-layer AutoEncoder
 
 ## Anomaly Detection
 
@@ -182,11 +174,11 @@ def compute_anomaly_scores(self, dataset, batch_size=None):
 
 ### Audio Preprocessing
 
-Audio files are preprocessed to a consistent format:
+Audio files are preprocessed to a consistent format (if needed):
 
 1. **Resampling**: Convert to 32kHz sample rate
 2. **Mono Conversion**: Convert to mono channel
-3. **Length Adjustment**: Pad or truncate to 10 seconds
+3. **Length Adjustment**: Pad or truncate to X seconds
 
 ```python
 def preprocess_audio(self, audio_file):
@@ -206,11 +198,10 @@ def preprocess_audio(self, audio_file):
 
 ### Embedding Extraction
 
-Audio embeddings are extracted using the CLAP model:
+Audio embeddings are extracted using the CLAP/HTSAT model:
 
-1. **Model Loading**: Load pretrained CLAP model
+1. **Model Loading**: Load pretrained CLAP (HTSAT) model
 2. **Feature Extraction**: Convert audio to embeddings
-3. **Normalization**: Normalize embeddings for consistency
 
 ```python
 def extract_embedding(self, audio):
@@ -227,7 +218,6 @@ def extract_embedding(self, audio):
 
 ### Data Validation
 
-Comprehensive validation ensures data quality:
 
 ```python
 def validate_dataset(self, dataset_path):
