@@ -82,7 +82,7 @@ Features:
 
 ## Command-Line Tools
 
-Music Anomalizer provides several command-line tools for advanced users and batch processing:
+Music Anomalizer provides several command-line tools for users and batch processing:
 
 ### Data Preparation
 
@@ -144,35 +144,9 @@ Available network architectures:
 - `DeepAE`: Deep 5-layer AutoEncoder (for complex datasets)
 - `CompactAE`: Compact 2-layer AutoEncoder (for smaller datasets)
 
-### Configuration Example
+Note that `DeepAE` and `CompactAE` are experimental.
 
-```yaml
-# exp2_deeper.yaml
-config_name: exp2_deeper
 
-networks:
-  AE:
-    class_name: AutoEncoder
-    hidden_dims: [512, 256, 128, 64, 32]
-    dropout_rate: 0.2
-    use_batch_norm: true
-  
-  AEwRES:
-    class_name: AutoEncoderWithResidual
-    hidden_dims: [512, 256, 128, 64, 32]
-    dropout_rate: 0.2
-    use_batch_norm: true
-
-dataset_paths:
-  HTSAT_base_musicradar_bass: "data/pickle/embedding/musicradar/HTSAT-base_musicradar_bass_embeddings.pkl"
-  HTSAT_base_musicradar_guitar: "data/pickle/embedding/musicradar/HTSAT-base_musicradar_guitar_embeddings.pkl"
-
-threshold:
-  AEwRES_bass: 0.004654786549508572
-  AEwRES_guitar: 0.03549588881432997
-  AE_bass: 0.005436893552541733
-  AE_guitar: 0.0010853302665054798
-```
 
 ## Troubleshooting
 
@@ -200,11 +174,3 @@ If you encounter issues not covered in this guide:
 2. Review the logs from Docker containers for error messages
 3. Open an issue on the GitHub repository with detailed information about the problem
 
-### Performance Tips
-
-1. **Use GPU Acceleration**: Always use GPU support when available for faster processing
-2. **Batch Processing**: For analyzing multiple files, consider using batch processing scripts
-3. **Memory Management**: Monitor system memory usage, especially when working with large datasets
-4. **Caching**: The system caches computed anomaly scores to avoid recomputation
-
-This user guide provides the essential information needed to start using Music Anomalizer. For more detailed technical information, please refer to the other documentation files in the `docs/` directory.
