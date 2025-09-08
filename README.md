@@ -117,7 +117,7 @@ Find relevant documentations in `docs/` directory.
 ### Audio Processing Pipeline
 
 ```
-WAV Files → Feature Extraction → CLAP Embeddings → Deep SVDD → Anomaly Scores
+WAV Files → Feature Extraction → CLAP/HTSAT Embeddings → Deep SVDD → Anomaly Scores
 ```
 
 1. **Audio Preprocessing**: Normalize, resample, and segment audio
@@ -392,6 +392,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **🎵 Happy anomaly detecting! 🎵**
+
 
 
 
