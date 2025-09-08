@@ -10,10 +10,10 @@ This project implements a **Deep Support Vector Data Description (Deep SVDD)** f
 
 ## 🚀 Key Features
 
-- **🎯 Unsupervised Anomaly Detection**: Deep SVDD-based models for musical audio loop analysis
-- **🧠 Multiple Neural Architectures**: AutoEncoders with residual connections, compact architectures, and baseline models
-- **🎵 Audio Processing Pipeline**: Complete WAV preprocessing with HTSAT embeddings and feature extraction
-- **📊 Interactive Web Interface**: Streamlit-based application for real-time audio analysis
+- **🎯 Unsupervised Anomaly Detection**: Deep SVDD-based models for musical audio analysis
+- **🧠 Multiple Neural Architectures**: Autoenoder, autoEncoders with residual connections and baseline models
+- **🎵 Audio Processing Pipeline**: WAV preprocessing with HTSAT embeddings and feature extraction
+- **📊 Interactive Web Interface**: Streamlit-based application for audio analysis
 - **⚡ Training**: PyTorch Lightning integration with WandB logging
 - **🔧 Flexible Configuration**: YAML-based experiment configuration system
 
@@ -29,7 +29,6 @@ This project implements a **Deep Support Vector Data Description (Deep SVDD)** f
 - [Web Interface](#web-interface)
 - [Configuration](#configuration)
 - [Project Structure](#project-structure)
-- [Contributing](#contributing)
 - [Citation](#citation)
 
 ## 🛠️ Installation
@@ -67,16 +66,14 @@ docker-compose up
 
 ## 🚀 Quick Start
 
-### 1. Preprocess Audio Data
+### 1. Prepare Audio Data
 
 ```bash
-# Process WAV files with metadata
-python music_anomalizer/scripts/preprocess_wav_loops.py \
-    --wav_dir data/audio_files \
-    --metadata_path data/metadata.json \
-    --output_path processed_data.pkl \
-    --sample_rate 32000 \
-    --target_length 10
+# Process WAV files 
+python prepare_data.py
+    --audio-dir path/to/data
+    --output-dir output/path
+    --model-name my_model
 ```
 
 ### 2. Train a Model
@@ -84,21 +81,26 @@ python music_anomalizer/scripts/preprocess_wav_loops.py \
 ```bash
 # Train using the simple interface
 python train.py \
-    --dataset processed_data.pkl \
+    --dataset path/to/processed/dataset \
     --network AE \
     --model-name my_anomaly_detector \
     --epochs 500 \
     --batch-size 32
 ```
 
+or alternatively run the training using the config files in `config/` directory:
+
+```bash
+ python train_models.py --config my_config
+```
+
 ### 3. Compute Anomaly Scores
 
 ```bash
 # Analyze new audio files
-python music_anomalizer/scripts/compute_anomaly_scores.py \
-    --model_path models/my_anomaly_detector \
-    --test_data test_data.pkl \
-    --output_path results.json
+python music_anomalizer/scripts/compute_anomaly_scores.py
+    --model-type [MODEL_NAME]
+    --output output/path
 ```
 
 ### 4. Launch Web Interface
@@ -239,7 +241,7 @@ python train.py \
 
 ### Experiment Management
 
-For complex experiments, use the configuration system:
+To manage experiments, use the configuration system:
 
 ```bash
 # Run predefined experiments
@@ -260,7 +262,7 @@ python music_anomalizer/scripts/train_models.py --config configs/exp2_deeper.yam
 ```bash
 # Run hyperparameter optimization
 python music_anomalizer/scripts/hp_tuning_loop_detection.py \
-    --dataset data.pkl \
+    --dataset path/to/dataset\
     --trials 50 \
     --config configs/hp_config.yaml
 ```
@@ -390,4 +392,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **🎵 Happy anomaly detecting! 🎵**
+
 
