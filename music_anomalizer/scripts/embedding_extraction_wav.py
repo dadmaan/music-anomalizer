@@ -3,7 +3,7 @@
 """
 Audio Embedding Extraction Script
 
-This script extracts embeddings from audio files using the CLAP (Contrastive Language-Audio Pre-training) model.
+This script extracts embeddings from audio files using the CLAP (Contrastive Language-Audio Pre-training) and HTSAT (Hierarchical Token-Semantic Audio Transformer) model.
 It processes WAV files using concurrent processing for efficient handling of large datasets and saves
 embeddings and index data as pickle files with flexible output naming and organization.
 
