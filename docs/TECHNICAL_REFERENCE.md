@@ -326,5 +326,3 @@ class ExperimentConfig(BaseModel):
     trainer: TrainerConfig
     deepSVDD: DeepSVDDConfig
 ```
-
-This technical reference provides detailed information about the implementation of Music Anomalizer. For usage instructions, please refer to the User Guide, and for development information, see the Developer Guide.
