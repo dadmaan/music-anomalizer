@@ -1,0 +1,72 @@
+# Git files
+.git
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Documentation
+*.md
+!README.md
+
+# Logs and temporary files
+*.log
+logs/
+output/
+
+# Large data files (keep structure but exclude content)
+data/dataset/**/*.wav
+data/pickle/**/*.pkl
+checkpoints/**/*.pt
+checkpoints/**/*.pth
+
+# Jupyter notebooks (optional - uncomment if you don't want to include them)
+# *.ipynb
+
+# Test files
+test_wav/
+.clineignore

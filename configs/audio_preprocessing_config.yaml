@@ -1,0 +1,6 @@
+# Configuration for fine tuning CNN14 and CNN14+AFF
+# Prep. params.
+sample_rate: 32000
+target_audio_length: 10
+mono: True
+only_pad: False

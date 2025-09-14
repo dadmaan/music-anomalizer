@@ -1,0 +1,31 @@
+# Experiment 2 Deep: Deep AutoEncoder configurations for multi-instrument anomaly detection
+# This experiment tests deep AutoEncoder variants with 4-layer architecture across multiple instruments
+base_config: base.yaml
+
+config_name: exp2_deep
+
+# Deep network configurations with 4 layers
+networks:
+  # Deep AutoEncoder with progressive dimension reduction
+  AE:
+    class_name: AutoEncoder
+    hidden_dims: [512, 256, 128, 64]  # 4-layer progressive reduction
+    dropout_rate: 0.2                 # Regularization for deeper network
+    use_batch_norm: true              # Essential for deep network stability
+  
+  # Deep AutoEncoder with residual connections
+  AEwRES:
+    class_name: AutoEncoderWithResidual
+    hidden_dims: [512, 256, 128, 64]  # Same depth with skip connections
+    dropout_rate: 0.2                 # Prevent overfitting in deep model
+    use_batch_norm: true              # Critical for residual network training
+
+# Experiment-specific training configuration
+trainer:
+  wandb_project_name: "LOOP-DSVDD-EXP2-DEEP"  # Separate tracking for deep experiment
+
+# Multi-instrument dataset paths
+dataset_paths:
+  HTSAT_base_musicradar_bass: "./data/pickle/embedding/musicradar/HTSAT-base_musicradar_bass_embeddings.pkl"
+  HTSAT_base_musicradar_guitar: "./data/pickle/embedding/musicradar/HTSAT-base_musicradar_guitar_embeddings.pkl"
+  HTSAT_base_musicradar_guitar_bass: "./data/pickle/embedding/musicradar/HTSAT-base_musicradar_guitar_bass_embeddings.pkl"

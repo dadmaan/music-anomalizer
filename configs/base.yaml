@@ -1,0 +1,33 @@
+# Base configuration with common settings shared across experiments
+# This file defines default values that can be inherited by specific experiments
+
+# Deep SVDD common parameters
+deepSVDD:
+  learning_rate: 0.00001  # Conservative learning rate for stable training
+  weight_decay: 0.00001   # L2 regularization for Deep SVDD
+
+# Training configuration defaults
+trainer:
+  batch_size: 32          # Balanced batch size for memory and convergence
+  max_epochs: 1000        # Maximum training epochs
+  min_epochs: null        # No minimum epoch requirement
+  patience: 10            # Early stopping patience (epochs without improvement)
+  wandb_log_model: false  # Disable model logging to save storage
+  enable_progress_bar: false  # Disable for cleaner logs
+  deterministic: false    # Allow non-deterministic for better performance
+
+# Common network architecture defaults
+network_defaults:
+  num_features: null      # Will be set dynamically based on data
+  train_data_length: null # Will be set dynamically based on data
+  activation_fn: "ELU"    # ELU activation for better gradient flow
+  learning_rate: 0.00001  # Conservative learning rate
+  weight_decay: 0.00001   # L2 regularization
+  bias: false             # No bias terms to reduce parameters
+
+# Audio preprocessing defaults
+audio_preprocessing:
+  sample_rate: 32000      # 32kHz sample rate for audio processing
+  target_audio_length: 10 # 10 seconds target length
+  mono: true              # Convert to mono for consistency
+  only_pad: false         # Allow repeating short audio clips

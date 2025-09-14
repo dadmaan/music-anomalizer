@@ -1,0 +1,56 @@
+# Experiment 2 Deeper: Very deep AutoEncoder configurations for complex pattern learning
+# This experiment tests deeper networks with 5-layer architectures
+base_config: base.yaml
+
+config_name: exp2_deeper
+
+# Deep network configurations with 5 layers
+networks:
+  # Deep AutoEncoder with progressive dimension reduction
+  AE:
+    class_name: AutoEncoder
+    hidden_dims: [512, 256, 128, 64, 32]  # 5-layer progressive reduction
+    dropout_rate: 0.2                     # Regularization for deep network
+    use_batch_norm: true                  # Essential for deep network stability
+  
+  # Deep AutoEncoder with residual connections
+  AEwRES:
+    class_name: AutoEncoderWithResidual
+    hidden_dims: [512, 256, 128, 64, 32]  # Same depth with skip connections
+    dropout_rate: 0.2                     # Prevent overfitting in very deep model
+    use_batch_norm: true                  # Critical for residual network training
+
+# Experiment-specific training configuration
+trainer:
+  wandb_project_name: "LOOP-DSVDD-EXP2-DEEPER"  # Separate tracking for deep experiment
+
+# Multi-instrument dataset paths
+dataset_paths:
+  HTSAT_base_musicradar_bass: "data/pickle/embedding/musicradar/HTSAT-base_musicradar_bass_embeddings.pkl"
+  HTSAT_base_musicradar_guitar: "data/pickle/embedding/musicradar/HTSAT-base_musicradar_guitar_embeddings.pkl"
+
+# Pre-computed thresholds from validation data
+# These thresholds were determined through statistical analysis of training distributions
+threshold:
+  AEwRES_bass: 0.004654786549508572    # Residual model threshold for bass
+  AEwRES_guitar: 0.03549588881432997   # Residual model threshold for guitar  
+  AE_bass: 0.005436893552541733        # Standard model threshold for bass
+  AE_guitar: 0.0010853302665054798     # Standard model threshold for guitar
+
+# Checkpoint paths for trained models (automatically discovered or manually specified)
+# The checkpoint registry will scan ./checkpoints/loop_benchmark/EXP2_DEEPER/ for best models
+checkpoints:
+  # Automatically discovered from checkpoint directory structure
+  experiment_name: "EXP2_DEEPER"  # Used for checkpoint discovery
+  
+  # Optional: Manual specification for specific use cases
+  manual_paths:
+    AEwRES_bass_ae: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_bass-AE-epoch=203-val_loss=0.01.ckpt"
+    AEwRES_bass_svdd: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_bass-DSVDD-epoch=88-val_loss=0.00.ckpt"
+    AEwRES_guitar_ae: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_guitar-AE-epoch=102-val_loss=0.01.ckpt"
+    AEwRES_guitar_svdd: "./checkpoints/loop_benchmark/EXP2_DEEPER/AEwRES/AEwRES-HTSAT_base_musicradar_guitar-DSVDD-epoch=101-val_loss=0.00.ckpt"
+    
+    AE_bass_ae: "checkpoints/loop_benchmark/EXP2_DEEPER/AE/AE-HTSAT_base_musicradar_bass-AE-epoch=103-val_loss=0.02.ckpt"
+    AE_bass_svdd: "checkpoints/loop_benchmark/EXP2_DEEPER/AE/AE-HTSAT_base_musicradar_bass-DSVDD-epoch=118-val_loss=0.00.ckpt"
+    AE_guitar_ae: "checkpoints/loop_benchmark/EXP2_DEEPER/AE/AE-HTSAT_base_musicradar_guitar-AE-epoch=78-val_loss=0.03.ckpt"
+    AE_guitar_svdd: "checkpoints/loop_benchmark/EXP2_DEEPER/AE/AE-HTSAT_base_musicradar_guitar-DSVDD-epoch=225-val_loss=0.00.ckpt"

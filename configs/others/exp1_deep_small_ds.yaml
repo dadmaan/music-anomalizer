@@ -1,0 +1,37 @@
+# Experiment 1 Deep Small Dataset: Very deep AutoEncoder configurations for small dataset anomaly detection
+# This experiment tests very deep networks with 5-layer architectures on a smaller dataset (392 samples)
+base_config: base.yaml
+
+config_name: exp1_deep_small_ds_deeper
+
+# Very deep network configurations with 5 layers
+networks:
+  # Baseline model without regularization
+  Baseline:
+    class_name: AutoEncoder
+    hidden_dims: [512, 256, 128]      # Standard depth for baseline comparison
+    dropout_rate: null                # No dropout for baseline
+    use_batch_norm: false             # No batch norm for baseline
+  
+  # Very deep AutoEncoder with progressive dimension reduction
+  AE:
+    class_name: AutoEncoder
+    hidden_dims: [512, 256, 128, 64, 32]  # 5-layer very deep architecture
+    dropout_rate: 0.2                     # Regularization crucial for very deep network
+    use_batch_norm: true                  # Essential for very deep network stability
+  
+  # Very deep AutoEncoder with residual connections
+  AEwRES:
+    class_name: AutoEncoderWithResidual
+    hidden_dims: [512, 256, 128, 64, 32]  # 5-layer depth with skip connections
+    dropout_rate: 0.2                     # Prevent overfitting in very deep model
+    use_batch_norm: true                  # Critical for residual network training
+
+# Experiment-specific training configuration
+trainer:
+  wandb_project_name: "LOOP-DSVDD-EXP1-DEEP-S-DS"  # Small dataset experiment tracking
+
+# Small dataset paths (392 samples) for training and evaluation
+dataset_paths:
+  HTSAT_base_musicradar_392_bass: "./data/pickle/embedding/musicradar/HTSAT-base_musicradar_392_bass_embeddings.pkl"
+  HTSAT_base_musicradar_392_nff_bass: "./data/pickle/embedding/musicradar/HTSAT-base_musicradar_392_nff_bass_embeddings.pkl"

@@ -1,0 +1,70 @@
+# Single Model Training Configuration
+# This configuration provides sensible defaults for training individual DeepSVDD models
+# It inherits common settings from base.yaml and defines network options for single-model use
+base_config: base.yaml
+
+config_name: single_model
+
+# Available network architectures for single-model training
+# Users can select one of these via CLI arguments
+networks:
+  # Standard AutoEncoder with regularization - recommended for most use cases
+  AE:
+    class_name: AutoEncoder
+    hidden_dims: [512, 256, 128]  # Progressive dimension reduction
+    dropout_rate: 0.2             # 20% dropout for regularization
+    use_batch_norm: true          # Batch normalization for stable training
+  
+  # AutoEncoder with residual connections - for complex patterns
+  AEwRES:
+    class_name: AutoEncoderWithResidual
+    hidden_dims: [512, 256, 128]  # Same depth with skip connections
+    dropout_rate: 0.2             # Consistent regularization
+    use_batch_norm: true          # Essential for residual networks
+  
+  # Baseline AutoEncoder without regularization - for comparison/debugging
+  Baseline:
+    class_name: AutoEncoder
+    hidden_dims: [512, 256, 128]  # Same architecture
+    dropout_rate: null            # No dropout
+    use_batch_norm: false         # No batch normalization
+  
+  # Deep AutoEncoder for complex datasets
+  DeepAE:
+    class_name: AutoEncoder
+    hidden_dims: [512, 256, 128, 64, 32]  # 5-layer progressive reduction
+    dropout_rate: 0.2             # Regularization for deep network
+    use_batch_norm: true          # Essential for deep network stability
+  
+  # Compact AutoEncoder for smaller datasets or faster training
+  CompactAE:
+    class_name: AutoEncoder
+    hidden_dims: [256, 128]       # Simpler 2-layer architecture
+    dropout_rate: 0.1             # Lower dropout for smaller network
+    use_batch_norm: true          # Batch norm for stability
+
+# Single-model specific trainer configuration
+trainer:
+  wandb_project_name: "DeepSVDD-SingleModel"  # Default project name
+  batch_size: 32                # Balanced batch size
+  max_epochs: 1000             # Maximum training epochs  
+  min_epochs: null             # No minimum requirement
+  patience: 10                 # Early stopping patience
+  wandb_log_model: false       # Disable by default to save storage
+  enable_progress_bar: false   # Can be overridden via CLI
+  deterministic: false         # Allow non-deterministic for performance
+
+# Default dataset paths (will be overridden by CLI argument)
+dataset_paths:
+  default: "./data/default.pkl"  # Placeholder - will be replaced by CLI
+
+# Training tips and recommendations (for documentation)
+training_recommendations:
+  - "Use AE for most general-purpose anomaly detection tasks"
+  - "Use AEwRES for complex patterns or when standard AE underfits" 
+  - "Use Baseline for debugging or when you need minimal regularization"
+  - "Use DeepAE for large, complex datasets with rich feature representations"
+  - "Use CompactAE for smaller datasets or when training time is critical"
+  - "Start with batch_size=32, increase to 64 or 128 for larger datasets"
+  - "If training is unstable, try enabling deterministic mode"
+  - "Enable progress bars for interactive training sessions"

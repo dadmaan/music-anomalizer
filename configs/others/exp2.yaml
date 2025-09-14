@@ -1,0 +1,31 @@
+# Experiment 2: Standard AutoEncoder configurations for multi-instrument anomaly detection
+# This experiment tests AutoEncoder variants with standard 3-layer depth across multiple instruments
+base_config: base.yaml
+
+config_name: exp2
+
+# Network architecture configurations
+networks:
+  # Standard AutoEncoder with regularization
+  AE:
+    class_name: AutoEncoder
+    hidden_dims: [512, 256, 128]  # Progressive dimension reduction
+    dropout_rate: 0.2             # 20% dropout for regularization
+    use_batch_norm: true          # Batch normalization for stable training
+  
+  # AutoEncoder with residual connections
+  AEwRES:
+    class_name: AutoEncoderWithResidual
+    hidden_dims: [512, 256, 128]  # Same architecture with skip connections
+    dropout_rate: 0.2             # Consistent regularization
+    use_batch_norm: true          # Batch norm for residual networks
+
+# Training configuration specific to this experiment
+trainer:
+  wandb_project_name: "LOOP-DSVDD-EXP2"  # Experiment tracking project
+
+# Multi-instrument dataset paths for training and evaluation
+dataset_paths:
+  HTSAT_base_musicradar_bass: "./data/pickle/embedding/musicradar/HTSAT-base_musicradar_bass_embeddings.pkl"
+  HTSAT_base_musicradar_guitar: "./data/pickle/embedding/musicradar/HTSAT-base_musicradar_guitar_embeddings.pkl"
+  HTSAT_base_musicradar_guitar_bass: "./data/pickle/embedding/musicradar/HTSAT-base_musicradar_guitar_bass_embeddings.pkl"
