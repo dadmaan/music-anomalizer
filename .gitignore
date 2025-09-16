@@ -197,3 +197,4 @@ CLAUDE.md
 
 # Development Docker files
 Dockerfile.dev
+docker-compose.dev.yml
