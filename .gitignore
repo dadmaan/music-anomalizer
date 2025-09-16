@@ -194,3 +194,6 @@ CLAUDE.md
 
 # Devcontainer
 .devcontainer
+
+# Development Docker files
+Dockerfile.dev
